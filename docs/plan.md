@@ -5,14 +5,18 @@ cases by `scripts/check_tiny.py`; claims marked **[cited]** rest on published re
 claims marked **[conjecture]** are unproven. Nothing in this document uses the banned
 argument "it would solve a hard problem, so it must be false".
 
-**Headline.** PC-NNF admits an *unconditional* exponential lower bound on explicit,
-satisfiable, polynomial-size CNF families (Section 2, Theorem C), obtained by a new
-reduction to monotone circuit complexity (Theorem B) rather than by rectangle covers.
-The same reduction applies to the maximal-clique formulation M(φ) of Q2 (Theorem D)
-and to any Q3 extension whose gates are monotone in their inputs. So the previous
-blow-up is, for some instance families, a property of the language and not of the
-constructor; whether it is also a property of the language on *random* 3-SAT is the
-main open experimental question.
+**Headline.** The universal formula U_N of fact 5 ("assignment x satisfies the CNF
+encoded by variables C") has *unconditionally* exponential PC-NNF size
+(Corollary C'), so the hypothesis "every satisfiable CNF has a polynomial PC-NNF" is
+false outright and the P/poly route of fact 5 is closed without any complexity
+assumption. The proof is a new reduction to monotone circuit complexity (Theorem B)
+rather than rectangle covers, applied to *relational* encodings: one CNF per n whose
+variables include the edges of the graph (Theorems C, D). These bounds concern the
+relational formulas only. They say nothing about *per-instance* formulas (a fixed
+graph, a fixed 3-CNF), because a per-instance formula is a conditioning of the
+relational one and conditioning never increases size. Whether the language blows up
+on per-instance formulas, including the instances the previous constructor ran on
+and random 3-SAT, is the main open question, theoretical and experimental.
 
 ---
 
@@ -132,8 +136,8 @@ would violate it), so VA cannot be bought that way.
    *universal* formula: let U_n(C, x) be the poly-size CNF saying "assignment x
    satisfies the size-n CNF encoded by variables C". If m(U_n) = poly(n), the compiled
    U_n is advice for length n: given ψ, condition on C := ψ and run CO. So the
-   hypothesis implies SAT ∈ P/poly. This is stated only to fix the formulation; it is
-   not used anywhere below, because Section 2.1 gives unconditional bounds.
+   hypothesis implies SAT ∈ P/poly. The conditional is moot: Corollary C' in 2.1 shows
+   m(U_n) is exponential unconditionally, so the hypothesis is simply false.
 
 ### 2.1 Q1a: unconditional lower bounds
 
@@ -164,8 +168,13 @@ monotone circuit complexity of f up to a constant factor.**
 |F| ≥ mono(g) for every monotone g obtainable from f by conditioning some variables,
 forgetting others, and renaming polarities. Call such g a *unate projection* of f.
 
-**Theorem C (explicit exponential families).** Each of the following satisfiable,
-poly-size CNF families has m(φ_n) ≥ 2^{n^{Ω(1)}} unconditionally.
+**Theorem C (explicit relational families).** Each family below is one satisfiable,
+poly-size CNF per n whose variables *include the edge indicators of the graph*, so
+its model set is a relation (graph, witness), not the solution set of one graph.
+(a) The CLIQUE and Tardos-type families have m(φ_n) ≥ 2^{n^{Ω(1)}} unconditionally.
+(b) The perfect-matching family has m(φ_n) ≥ n^{Ω(log n)} from Razborov 1985, and
+2^{n^{1/3−o(1)}} if the 2025 monotone matching bound (arXiv:2507.16105) holds up
+**[cited via search, verify before quoting]**.
 
 - **CLIQUE encoding.** Variables: e_uv for u < v ∈ [n] (edge indicators), s_u
   (vertex selected), q_u (its complement), z_{i,u} (slot i ∈ [k] picks u). Clauses:
@@ -182,24 +191,36 @@ poly-size CNF families has m(φ_n) ≥ 2^{n^{Ω(1)}} unconditionally.
   n^{Ω(log n)} **[cited]**. Superpolynomial, and PM ∈ P.
 - **Tseitin encodings of monotone functions with an exponential monotone/non-monotone
   gap.** Tardos (Combinatorica 8, 1988) gives a monotone function in P with monotone
-  complexity 2^{Ω((n/log n)^{1/3})} (Harnik–Raz, STOC 2000, and later Pitassi–Robere,
-  STOC 2017, and Cavalar–Kumar–Rossman 2020 improve exponents for other explicit
-  functions; exact statements to be checked before quoting) **[cited, exponents to
-  verify]**. Encoding a poly circuit for such an f by Tseitin variables g gives
-  ∃g φ_C(x, g) = f(x).
+  complexity exp(c·n^{1/6−o(1)}) **[cited; exponent confirmed from the abstract]**.
+  For explicit functions not known to be in P, Andreev 1987 and Harnik–Raz (STOC
+  2000) give 2^{Ω(n^{1/3}/log n)} and Cavalar–Kumar–Rossman 2020 give
+  exp(n^{1/2−o(1)}) **[cited via search]**. Encoding a poly circuit for such an f by
+  Tseitin variables g gives ∃g φ_C(x, g) = f(x).
 
-*What this says about the P vs NP framing.* The answer set of a satisfiable CLIQUE
-instance family has no polynomial PC-NNF, regardless of whether P = NP. The answer set
-of a *polynomial-time* problem (perfect matching, Tardos's function) also has none. So
-PC-NNF size is decoupled from decision complexity in both directions, and this project
-cannot decide P vs NP with PC-NNF as the language; what it can do is map exactly where
-the language fails and test candidate strengthenings (Q3) against Theorem B.
+**Corollary C' (the universal formula).** Let U_N(C, x) be the poly-size CNF of fact 5
+with auxiliary Tseitin variables a. Conditioning on C := code(φ_{n,k}) and forgetting
+a yields φ_{n,k} itself, so by 1.3, m(U_N) ≥ m(φ_{n,k}) = 2^{n^{Ω(1)}} for
+N = |φ_{n,k}|. This is one explicit satisfiable CNF family with exponential minimum
+size, with no assumption. It closes the P/poly route of fact 5 outright.
 
-*Limits of the tool.* For functions with no hard unate projection nothing is known. The
-open case that matters for Q3 is f = ∧_{uv ∈ E(G)} (H_u ∨ H_v) with impure blocks
-H_u = (x_u ∧ y_u) ∨ (¬x_u ∧ z_u) and G an expander: every unate projection has a small
-monotone circuit, and no other technique is available. **[conjecture: m is
-exponential for this family]**
+*What this says about the P vs NP framing.* The CLIQUE *relation* φ_{n,k} has no
+polynomial PC-NNF, regardless of whether P = NP; neither do the relations of
+*polynomial-time* problems (perfect matching, Tardos's function). So relational
+PC-NNF size is decoupled from decision complexity in both directions, and this
+project cannot decide P vs NP with PC-NNF as the language. For a fixed graph G the
+question is open: φ_{n,k}|_{e:=G} is a conditioning of φ_{n,k}, so
+m(φ_G) ≤ m(φ_{n,k}) and Theorem C gives no lower bound on it. What the project can do
+is map where the language fails per instance and test candidate strengthenings (Q3)
+against Theorem B.
+
+*Limits of the tool.* For functions with no hard unate projection nothing is known.
+Two named open cases: (1) the **fixed-graph clique formula** over vertex selectors
+s_u: "at least k of s" ∧ (¬s_u ∨ ¬s_v) for every non-edge uv. It is non-monotone; its
+unate projections are thresholds, independent-set 2-CNFs after renaming, or thresholds
+over a fixed clique, all with small monotone circuits; for fixed k it is a DNF of size
+O(n^k). This is the honest form of "does PC-NNF blow up per instance". (2) The family
+f = ∧_{uv ∈ E(G)} (H_u ∨ H_v) with impure blocks H_u = (x_u ∧ y_u) ∨ (¬x_u ∧ z_u) and
+G an expander, which matters for Q3. **[conjecture: m is exponential for both]**
 
 ### 2.2 Q1b: families with polynomial m
 
@@ -221,14 +242,20 @@ Provable now:
   **[conjecture]** m(φ) ≤ |φ|·2^{O(w)} where w is a width measure of the graph on
   *impure* variables only; the experiments test this.
 
-Random 3-SAT: no theorem either way. DNNF lower bounds for random k-CNF (they are
-expanders w.h.p., Bova et al. 2014) say nothing about PC-NNF because the expander
-2-CNF itself is linear in PC-NNF. Almost every variable in a random 3-CNF is impure,
-so the 2^{|I|} bound is useless, and the clash graph is connected above a small
-clause/variable ratio. This is the central experimental unknown. Structured 3-SAT:
-graph-colouring CNFs have the "positive exactly-one + negative conflict graph" shape
-of Section 2.3 and inherit its lower bound when edge indicators are variables;
-for a fixed graph the question is open.
+Random 3-SAT: no theorem either way. Bova et al. 2014 prove the DNNF bound for an
+explicit expander family only; random bounded-degree graphs are expanders w.h.p., so
+the extension to random CNFs is a routine consequence but is not stated in that
+paper **[verified against the abstract]**. Either way it says nothing about PC-NNF,
+because the expander 2-CNF itself is linear in PC-NNF. Almost every variable in a
+random 3-CNF is impure, so the 2^{|I|} bound is useless, and the clash graph is
+connected above a small clause/variable ratio. This is the central experimental
+unknown. Structured 3-SAT: graph-colouring CNFs have the "positive exactly-one +
+negative conflict graph" shape of Section 2.4. With edge indicators as variables the
+projection ∃c φ(e, c) = "G(e) is k-colourable" is *anti-monotone* in e; renaming
+e ↔ ¬e (free by 1.3) makes it monotone, equivalently monotone circuit complexity is
+invariant under duality, so any monotone lower bound for non-k-colourability
+transfers (I know of no classical one to cite). For a fixed graph the question is
+open.
 
 ### 2.3 Q1c: the clash-graph compiler is sound
 
@@ -281,9 +308,11 @@ witness and imposes nothing; y_e = 0 forces the witness q_u or q_v, i.e. not bot
 endpoints selected. So m(M(φ'_{n,k})) ≥ mono(CLIQUE_{n,k}) = 2^{n^{Ω(1)}}.
 **[proof sketch above; Lean target]**
 
-So the retained-incomplete-answers space is *not* easier in the worst case, and the
-previous constructor, which enumerated exactly this space, had to blow up on such
-inputs. Whether M(φ) and φ have the *same* growth on a given instance is open: neither
+So the retained-incomplete-answers space is *not* easier in the worst case for the
+relational encoding. This does not explain the previous constructor's blow-up unless
+it was fed edge-variable encodings; for the clique graph of a fixed 3-CNF the bound
+does not apply (the fixed-graph formula is a conditioning of the relational one).
+Whether M(φ) and φ have the *same* growth on a given instance is open: neither
 reduction between them is a PC-NNF operation (both need an ∧ with an impure operand).
 This is experiment E6.
 
@@ -313,16 +342,26 @@ violate the base rule at N. N is accepted iff every x ∈ X_bad can be assigned 
 H(x) ≠ N in the sub-DAG of N such that (i) every path from N to a leaf `x` or `¬x`
 passes through H(x), i.e. H(x) dominates all x-leaves from source N; and (ii) for
 x ≠ x' with H(x) ≠ H(x'), x ∉ vars(H(x')). Under this rule the bottom-up pass is
-unchanged and Theorem A still holds. *Proof sketch.* Replace every maximal H_j-instance
-under N by a fresh positive atom h_j; each child becomes C_i' with h_j positive-only
-and no X_bad variables, so the base merge lemma applies to ∧ C_i'. If sat(H_j) = 1 pick
-a model τ_j of H_j and set the X_bad variables of H_j from τ_j (consistent across
-instances because H_j is one block, and across blocks by (ii)); non-bad variables of
-H_j that are shared across children are single-polarity everywhere under N, so
-raising them to the merge value keeps H_j true; if sat(H_j) = 0 the atom is ⊥ and
-τ_j is not needed. The counterexample H = A∧B, F = H, G = (H∧⊥) ∨ (¬A∧D) is rejected
-because the `¬A` leaf in G is not dominated by H. **[checked that base rule rejects it
-and that the naive pass would be wrong]** The rule is preserved by conditioning
+unchanged and Theorem A still holds. *Proof sketch* **[sketch, gap noted, Lean target
+L8]**. First, every exempt block lies under at least two children: x ∈ X_bad is
+reachable from two different children and all its paths pass through H(x), so H(x) is
+reachable from both. Hence no variable of an exempt block is private to one child;
+every non-bad variable of H_j is shared and therefore single-polarity everywhere
+under N. Now take genuine models σ_i ⊨ C_i, replace every maximal H_j-instance under N
+by a positive atom h_j with value h_j := H_j(σ_i) in child i, and run the base merge on
+the resulting C_i' (they contain h_j positive-only and no X_bad variable). For the
+X_bad variables of H_j take the values from any σ_i with H_j(σ_i) = 1 (consistent
+across instances because H_j is one block, across blocks by (ii)); for the shared
+non-bad variables take the merge value, which keeps every C_i' and every H_j true by
+monotonicity. If no child has H_j(σ_i) = 1 the atom is 0 everywhere and H_j's bad
+variables are irrelevant. The gap the reviewer found in the earlier version (an
+independent model τ_j of H_j clashing with σ_i on variables of H_j) is closed by the
+"no private variables" observation, but the ordering above is the one to formalise.
+The counterexample H = A∧B, F = H, G = (H∧⊥) ∨ (¬A∧D) is rejected because the `¬A`
+leaf in G is not dominated by H. **[checked that base rule rejects it, that the naive
+pass would be wrong, and, by the reviewer's fuzzing of 9000 accepted exempt DAGs,
+that soundness, conditioning closure and the Theorem B collapse hold under the
+rule]** The rule is preserved by conditioning
 (conditioning removes leaves, so dominance and X_bad only shrink).
 Checkability: one dominator-tree computation (Lengauer–Tarjan, near-linear) per
 ∧-node that has a non-empty X_bad, so O(|F|²) worst case and near-linear when few
@@ -352,13 +391,18 @@ parity/counter OBDD over virtual atoms with each ite(h_i, A, B) expanded as
 constants, not asymptotics. The user's remark that the pass only needs *one* valid
 answer is correct but does not help: the difficulty is falsifiability, not choice.
 
-**Candidate 3 (own): bounded-context blocks.** Let each node carry a designated set of
-≤ c context variables and compute sat as a table over their 2^c assignments; the
-polarity rule is waived for context variables. Sound, one-pass with boundedly
-context-dependent answers, conditioning-closed. Base simulation: Shannon-expand the
-whole DAG on the union of all context variables, which can be exponential even for
-c = 1, so a separation is possible. **[conjecture, untested]** Monotone gates only, so
-Theorem B still applies to it; it can only help on non-unate-hard functions.
+**Candidate 3 (own): bounded-context blocks.** **[conjecture, undefined]** The idea:
+each node N carries a context set K(N) of ≤ c variables, its answer is a table
+sat(N|κ) over the 2^c assignments κ to K(N), and the polarity rule at N is waived for
+variables in K(N). What is *not* yet defined is how a parent consumes a child's table
+when K(child) ⊄ K(parent). The strict rule K(child) ⊆ K(parent) is sound but makes
+the root's context contain every context variable, so c bounds the total and Shannon
+expansion on ≤ c variables simulates it in base PC-NNF at cost 2^c: no asymptotic
+gain. The permissive rule, dropping a child's context variable when it is private to
+that child within the parent, is where a separation might live, but its soundness
+(an OR over the dropped variable's values per child) and the size of its base
+simulation have not been worked out. Monotone gates only, so Theorem B would apply
+to any sound version. Not recommended for implementation until defined.
 
 **Candidate 4 (own): decision nodes on impure shared variables** are already
 expressible as conditioning inside the ∨ of rule 4 in 2.3; no gain.
@@ -382,13 +426,13 @@ is the theoretical question that decides whether the whole approach can progress
 
 | # | Hypothesis | Status from theory |
 |---|---|---|
-| H1 | The previous blow-up came from the constructor, not the language. | Refuted *for some families* (Theorems C, D). Open for the actual instances used. |
+| H1 | The previous blow-up came from the constructor, not the language. | Refuted for relational (edge-variable) encodings (Theorems C, D); open for every per-instance family, including the instances actually used. |
 | H2 | Random 3-SAT at fixed ratio α has exponential m(φ). | Open; no technique. |
 | H3 | Size is governed by the structure of *impure* variables: m(φ) ≤ ǀφǀ·2^{O(w)} for a width w of the clash structure. | Conjecture (2.2). |
-| H4 | The Q1c compiler never exceeds decision-DNNF (D4/c2d) size on the same instance and same variable order. | Provable by construction; check the implementation. |
+| H4 | The Q1c compiler never exceeds decision-DNNF (D4/c2d) size on the same instance and same variable order. | Hypothesis only: after a clash-graph split the residuals and cache behaviour differ from D4's. |
 | H5 | M(φ) and φ have the same size growth on the same instances. | Open (2.4). |
 | H6 | The shared-block exemption gives exponential savings on ∧_E (H_u ∨ H_v). | Conjecture (2.5). |
-| H7 | Theorem B is tight: on tiny CLIQUE encodings the exact minimum equals the monotone circuit minimum of the projection. | Open; testable at n ≤ 4. |
+| H7 | The projection bound is tight on tiny CLIQUE encodings: the exact minimum of φ_{n,k} equals the monotone circuit minimum of CLIQUE_{n,k}. (Theorem B itself is an equality only for monotone f.) | Open; testable at n ≤ 4. |
 
 ### 3.2 Instance generators (C# library, DIMACS out)
 
@@ -455,7 +499,9 @@ Outputs: nodes, references, size, wall time, cache hit rate, and a validity re-c
   H5: divergent exponents on the same instances refute it. H6: exact minima at tiny
   size that coincide with and without exemption weaken it; compiler growth on the
   expander family supports it. H7: exact minima below the monotone minimum would
-  contradict Theorem B and indicate a bug.
+  contradict Theorem B and indicate a bug. In addition, compile the fixed-graph
+  clique formula of 2.1 (open case 1) for graph families of growing size; polynomial
+  growth there would settle the per-instance question in the language's favour.
 
 ---
 
@@ -464,15 +510,16 @@ Outputs: nodes, references, size, wall time, cache hit rate, and a validity re-c
 | Rank | Extension | One-pass sat | Conditioning | Base can simulate in poly? | Escapes Theorem B? |
 |---|---|---|---|---|---|
 | 1 | Shared-block exemption (dominator rule, 2.5) | yes, unchanged pass | yes | unknown; conjectured no | no |
-| 2 | Bounded-context blocks (c context variables per node) | yes, 2^c-entry answers | yes | unknown; conjectured no for growing total context | no |
-| 3 | XOR / exactly-k / cardinality over disjoint two-sided children | yes, needs fals bits | yes | yes (parity/counter OBDD over virtual atoms) | not applicable (simulable) |
-| 4 | Negation of two-sided sub-blocks | yes | yes | yes | not applicable |
+| 2 | XOR / exactly-k / cardinality over disjoint two-sided children | yes, needs fals bits | yes | yes (parity/counter OBDD over virtual atoms) | not applicable (simulable) |
+| 3 | Negation of two-sided sub-blocks | yes | yes | yes | not applicable |
+| — | Bounded-context blocks | undefined (2.5) | undefined | strict version: yes at 2^c | no |
 | — | XOR over general PC-NNF children | **no** (coNP-hard fals) | — | — | — |
 | — | Rule at both ∧ and ∨ ("two-sided PC-NNF") | yes, both bits | yes | expresses only unate functions | — |
 
 Recommendation: implement 1 (as a compiler post-pass and in the exact-synthesis
-encoding) and 2 (exact synthesis only, c = 1, 2). Do not build 3 or 4 beyond a
-correctness note; they cannot change asymptotics.
+encoding). Do not build 2 or 3 beyond a correctness note; they cannot change
+asymptotics. Bounded-context blocks stay on paper until the combination rule is
+defined and proved sound.
 
 ---
 
