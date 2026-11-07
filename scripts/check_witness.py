@@ -12,7 +12,9 @@ Checks:
   (C) clique-graph identity: for a CNF psi with m clauses and G its clique graph on literal
       occurrences, "S is a clique of G with |S| >= m" is exactly "S picks one occurrence per
       clause and contains no complementary pair"; and the literal sets of such S are
-      exactly the witnessed models of psi (plan.md, 4.1 and 4.2).
+      exactly the witnessed models of psi (plan.md, 1.3 and 4.2).
+  (B') Theorem B' (general collapse): for every valid F, F with negative leaves replaced by T
+      computes the upward closure of F's function, monotone or not (plan.md, 3.2).
 """
 import itertools, random
 random.seed(11)
@@ -186,4 +188,21 @@ def check_clique_graph_identity(trials=1500, N=4):
     print(f"(C) clique-graph identity: holds on {trials} random CNFs with <= {N} variables")
 
 
-check_witness(); check_fixed_k_clique(); check_clique_graph_identity()
+def check_upward_closure(trials=4000, N=4):
+    assigns = list(itertools.product([0, 1], repeat=N))
+    idx = {s: i for i, s in enumerate(assigns)}
+    seen = nonmono = 0
+    for _ in range(trials):
+        nodes, root = rand_formula(N, random.randint(11, 18))
+        if not valid(nodes): continue
+        seen += 1
+        t = table(nodes, root, assigns)
+        up = tuple(int(any(t[idx[tau]] for tau in assigns if all(a <= b for a, b in zip(tau, s))))
+                   for s in assigns)
+        if up != t: nonmono += 1
+        coll = [(('T',) if n[0] == 'lit' and not n[2] else n) for n in nodes]
+        assert table(coll, root, assigns) == up, ("upward closure", nodes)
+    print(f"(B') upward closure: {seen} random valid formulas ({nonmono} non-monotone), F[neg := T] == closure")
+
+
+check_witness(); check_fixed_k_clique(); check_clique_graph_identity(); check_upward_closure()
