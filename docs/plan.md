@@ -1,28 +1,97 @@
-# PC-NNF study: definitions, assessment of Q1–Q3, experiment plan
+# PC-NNF for per-instance clique: working plan
 
-Status: planning document, 2026-09-19. Claims marked **[checked]** were verified on tiny
-cases by `scripts/check_tiny.py`; claims marked **[cited]** rest on published results;
-claims marked **[conjecture]** are unproven. Nothing in this document uses the banned
-argument "it would solve a hard problem, so it must be false".
+## 0. Status and conventions
 
-**Headline.** The universal formula U_N of fact 5 ("assignment x satisfies the CNF
-encoded by variables C") has *unconditionally* exponential PC-NNF size
-(Corollary C'), so the hypothesis "every satisfiable CNF has a polynomial PC-NNF" is
-false outright and the P/poly route of fact 5 is closed without any complexity
-assumption. The proof is a new reduction to monotone circuit complexity (Theorem B)
-rather than rectangle covers, applied to *relational* encodings: one CNF per n whose
-variables include the edges of the graph (Theorems C, D). These bounds concern the
-relational formulas only. They say nothing about *per-instance* formulas (a fixed
-graph, a fixed 3-CNF), because a per-instance formula is a conditioning of the
-relational one and conditioning never increases size. Whether the language blows up
-on per-instance formulas, including the instances the previous constructor ran on
-and random 3-SAT, is the main open question, theoretical and experimental.
+Status: working document, 2026-11-07. It replaces the September 2026 assessment, which is
+kept verbatim at [docs/archive/plan-2026-09-assessment.md](archive/plan-2026-09-assessment.md)
+("the archive" below; section numbers cited as "archive 2.5" refer to it). Every theorem of
+the archive is retained; what changed is the framing and the experiment plan.
+
+Tags. **[checked]**: verified on tiny cases by a script in `scripts/` (`check_tiny.py` for
+every tag carried over from the archive, `check_witness.py` for the three claims added here).
+**[cited]**: rests on a published result, named at the tag. **[conjecture]**: unproven.
+A tag is never upgraded in this document; untagged sentences are definitions, trivial
+consequences, or plans. Nothing here uses the argument "it would solve a hard problem, so it
+must be false"; stakes are stated as stakes only.
 
 ---
 
-## 1. PC-NNF: formal write-up
+## 1. Goal and framing
 
-### 1.1 Syntax
+### 1.1 The intended use
+
+PC-NNF is negation normal form plus a polarity-consistency rule at ∧-nodes (Section 2). Its
+defining property is that satisfiability, and a satisfying assignment, are computed by one
+bottom-up pass and one top-down walk, in time linear in the circuit size (Theorem A, Lemma W).
+
+The use is per instance. Given one fixed graph G on n vertices and a target k, build a valid
+PC-NNF for the **fixed-graph clique formula**
+
+  φ_{G,k}(s) = "the selected vertex set S = {u : s_u = 1} is a clique of G with |S| ≥ k"
+
+over vertex-selector variables s_u, and read a witness off the circuit. A previous constructor
+did this and blew up exponentially. The question for the project is whether that blow-up is
+forced by the language or caused by the constructor. It splits into two questions that this
+document keeps separate throughout:
+
+1. **Existence.** For a fixed G and k, how large is the smallest valid PC-NNF equivalent to
+   φ_{G,k}? Write m(φ) for the minimum size. Open: no lower-bound technique is known for it
+   (Section 4.1).
+2. **Construction.** Can a polynomial-time, provably correct compiler (such as the clash-graph
+   compiler of Section 3.6) reach that size, on the instances of interest? Only a
+   correct-by-construction compiler gives an algorithmic consequence, because a circuit from an
+   untrusted source cannot be verified equivalent to φ_{G,k} in polynomial time in general
+   (equivalence is coNP-hard, Section 2.4); partial one-sided checks exist (Section 6.5).
+
+Stakes, stated once. A compiler that is polynomial on *every* graph would decide CLIQUE in
+polynomial time. A proof that m(φ_{G,k}) is super-polynomial for some graph family would be a
+new kind of lower bound. Neither statement is used as an argument anywhere below.
+
+### 1.2 What the relational results do and do not say
+
+The archive proves (Theorems B, C, C′, D, restated in Section 3) that the **relational**
+clique formula φ_{n,k}(e, s, q, z), whose variables include the edge indicators e_uv of every
+graph on n vertices, has no polynomial PC-NNF. The proof goes through monotone circuit
+complexity: every valid PC-NNF for a monotone function collapses to a monotone circuit of the
+same size (Theorem B), and ∃(s,q,z) φ_{n,k} is CLIQUE_{n,k}(e).
+
+These results say nothing about any single graph. For a fixed G, φ_{G,k} is obtained from
+φ_{n,k} by conditioning e := E(G) and forgetting the auxiliaries q, z; both operations are free
+in PC-NNF (Section 2.3), so m(φ_{G,k}) ≤ m(φ_{n,k}) for every G, and the relational bound is a
+bound on a maximum over all graphs plus the cost of uniformity. The two can differ
+arbitrarily: a unate CNF ψ has m(ψ) = |ψ|, while the relational formula "x satisfies the CNF
+encoded by C" is exponential (Corollary C′). So the relational theorems close one route (a
+PC-NNF as polynomial *advice* for all instances of a length) and leave the per-instance
+question, which is the project's question, fully open.
+
+The archive's "general obstacle" and "net assessment" for extensions (archive 2.5) and the
+"Escapes Theorem B?" column of its ranking table judged extensions by whether they beat the
+relational bound. That criterion is dropped here; Theorem B is kept as a lower-bound tool and
+a sanity check (Section 5.1).
+
+### 1.3 Where the old constructor's space sits
+
+The old constructor reduced a CNF ψ with m clauses to clique: G = clique graph of ψ (vertices
+are literal occurrences; edges join occurrences in different clauses that are not
+complementary), k = m. For this G and k the fixed-graph clique formula is exactly
+
+  φ_{G_ψ, m}(y) = ∧_C (exactly one y_v with v ∈ C) ∧ ∧_{v, v′ complementary} (¬y_v ∨ ¬y_{v′}),
+
+a positive exactly-one family plus a negative conflict graph; its models, read as literal
+sets, are the (model, witness) pairs of ψ, and their extensions are exactly the models of
+ψ. **[checked]** (`check_witness.py`, check C.)
+The constructor actually enumerated the larger space M(ψ) of *maximal* consistent choices
+(Section 4.2). So both the fixed-graph clique question (Section 4.1) with G a clique graph and
+the M(ψ) question (Section 4.2) are the same per-instance question seen from two sides.
+
+---
+
+## 2. The language, satisfiability, and witness extraction
+
+Sections 2.1 to 2.5 are archive Section 1, reproduced verbatim except for the added Lemma W
+(2.2) and remark on auxiliaries (2.3); they are the authoritative definition.
+
+### 2.1 Syntax and validity
 
 A PC-NNF is a directed acyclic graph whose nodes ("blocks") are
 - leaves: a literal `x` or `¬x`, or a constant `⊤`, `⊥`;
@@ -44,7 +113,7 @@ n-bit bitsets (w = word size), one bottom-up pass.
 
 Semantics are the usual Boolean ones; ⟦F⟧ ⊆ {0,1}^vars(F) is the model set.
 
-### 1.2 Merge lemma and the bottom-up pass
+### 2.2 Merge lemma, the bottom-up pass, and witness extraction
 
 **Fact (unateness).** If x ∉ vars⁻(N) then ⟦N⟧ is monotone non-decreasing in x; if
 x ∉ vars⁺(N) it is non-increasing. (Induction: NNF gates are monotone in their inputs.)
@@ -68,7 +137,25 @@ model of ∨ satisfies some child. *Soundness* (sat=1 ⇒ satisfiable) is induct
 Lemma A at ∧-nodes. **[checked]** Because a node's answer depends on nothing outside
 its own sub-DAG, block answers are context-free and memoised; time is O(|F|).
 
-### 1.3 Conditioning and forgetting
+**Lemma W (witness extraction; added 2026-11).** Let F be valid with sat(F) = 1. Walk
+top-down from the root: at an ∨-node keep one child with sat = 1, at an ∧-node keep all
+children, visiting each node once. Let L be the set of literal leaves reached. Then L is
+consistent (no variable occurs in L with both polarities) and every total assignment
+extending L is a model of F. Time O(|F|) after the bottom-up pass. **[checked]**
+(`check_witness.py`, check W.)
+
+*Proof.* Suppose `x` and `¬x` are both reached. Take one path from the root to each in the
+unfolded tree and let N be the last node common to both paths. N is not a leaf and is not an
+∨-node (only one child of an ∨-node is kept), so N is an ∧-node with the two occurrences
+under different children C_i ≠ C_j, giving x ∈ vars⁺(C_i) ∩ vars⁻(C_j), contrary to validity.
+Hence L is consistent. The kept nodes form a sub-DAG in which every kept ∨-node has a kept
+child and every kept ∧-node has all its children kept; by induction every kept node
+evaluates to 1 under any assignment that makes all literals of L true. ∎
+
+Lemma W does not replace Lemma A; it is the form of soundness the harness will implement.
+The witness is a partial assignment; variables outside L are free.
+
+### 2.3 Conditioning and forgetting
 
 **Conditioning** F|ρ for a partial assignment ρ replaces each literal leaf over dom(ρ)
 by ⊤ or ⊥. This removes literal occurrences and adds none, so vars± only shrink:
@@ -89,67 +176,72 @@ substitution applied at once.
 **Polarity renaming.** Swapping x ↔ ¬x throughout preserves validity and size. Thus
 m(f) = m(f with any set of variables complemented).
 
-### 1.4 Queries (Darwiche–Marquis knowledge-compilation map vocabulary)
+**Remark (auxiliary variables never help; added 2026-11).** If F is a valid PC-NNF over
+X ∪ A with ∃A F ≡ f, forgetting A gives a valid PC-NNF over X of size ≤ |F| computing f.
+So m(f) may be defined over the variables of f alone, and the exact-synthesis search of
+Section 6.2 need not consider auxiliaries. (Immediate from forgetting.)
+
+### 2.4 Queries (Darwiche–Marquis knowledge-compilation map vocabulary)
 
 | Query | PC-NNF | Reason |
 |---|---|---|
 | CO consistency | O(size) | Theorem A |
-| CD conditioning | O(size) | 1.3 |
-| FO / SFO forgetting | O(size) | 1.3 |
+| witness (a model) | O(size) | Lemma W |
+| CD conditioning | O(size) | 2.3 |
+| FO / SFO forgetting | O(size) | 2.3 |
 | CE clausal entailment F ⊨ c | O(size) | F ⊨ c ⇔ F|¬c unsatisfiable; ¬c is a term |
 | ME model enumeration | output-polynomial, O(n·size) per model | branch on variables, prune with CO |
 | "can ρ be extended to a model" | O(size) | CO of F|ρ |
-| CT model counting | #P-hard | fact 4: monotone 2-CNF is a linear PC-NNF, #vertex covers is #P-complete (Valiant 1979) **[cited]** |
+| CT model counting | #P-hard | monotone 2-CNF is a linear PC-NNF, #vertex covers is #P-complete (Valiant, SIAM J. Comput. 8, 1979) **[cited]** |
 | VA validity, IM implicant test, SE sentential entailment, EQ equivalence | coNP-hard | every consistent-term DNF is a valid PC-NNF; tautology of DNF is coNP-complete |
 
 Two consequences worth stating once. (i) A valid PC-NNF with no ⊥ leaf is satisfiable
-(sat(F) = 1 trivially), so the substantive query really is CO after conditioning, as
-fact 2 says. (ii) PC-NNF is closed under ∨ (free), under ∧ of co-unate operands
-(same-polarity shared variables), under conditioning, forgetting and renaming, but not
-under negation: ¬ swaps ∧/∨ and the polarity rule would then be required at former
-∨-nodes. A "two-sided" variant that imposes the rule at both gate types can express
-only unate functions (the lowest common ancestor of an x-occurrence and a ¬x-occurrence
-would violate it), so VA cannot be bought that way.
+(sat(F) = 1 trivially), so the substantive query really is CO after conditioning. (ii)
+PC-NNF is closed under ∨ (free), under ∧ of co-unate operands (same-polarity shared
+variables), under conditioning, forgetting and renaming, but not under negation: ¬ swaps
+∧/∨ and the polarity rule would then be required at former ∨-nodes. A "two-sided" variant
+that imposes the rule at both gate types can express only unate functions (the lowest
+common ancestor of an x-occurrence and a ¬x-occurrence would violate it), so VA cannot be
+bought that way.
+
+### 2.5 Background facts (archive 2.0, restated as definitions)
+
+The three questions of the archive referred to five numbered "facts" that were never
+recorded. Their content, as restated in archive 2.0, is background for this document:
+
+- Expressibility: every satisfiable CNF has an equivalent valid PC-NNF (a DNF with
+  consistent terms is valid). Only size matters.
+- The substantive requirement is ⟦F⟧ = ⟦φ⟧ with |F| = poly(|φ|); ⊥-freeness alone gives
+  satisfiability.
+- DNNF ⊆ PC-NNF (disjoint children cannot conflict), so DNNF, d-DNNF and OBDD sizes
+  upper-bound m. The inclusion is strict: the monotone 2-CNF of a bounded-degree expander is
+  a linear-size PC-NNF but needs DNNF size 2^Ω(n) (Bova, Capelli, Mengel, Slivovsky,
+  "Expander CNFs have exponential DNNF size", arXiv:1411.1995, 2014; and "Knowledge
+  compilation meets communication complexity", IJCAI 2016) **[cited]**. No PC-NNF → DNNF
+  translation with polynomial blow-up exists.
+- Model counting is #P-hard (table above).
+- A polynomial PC-NNF per instance is not by itself advice usable by a P/poly algorithm
+  (the circuit depends on the instance and cannot be verified); the advice route needs the
+  universal formula U_N, which Corollary C′ rules out unconditionally.
 
 ---
 
-## 2. Assessment of Q1–Q3
+## 3. What is proved, and what each result means per instance
 
-### 2.0 The five facts
+Each item ends with one line, marked ▸, on what it says about the per-instance questions
+of Section 1.1.
 
-1. **Expressibility: true.** A DNF whose terms are consistent is valid (each term is an
-   ∧ of literals over distinct variables; ∨ is unconstrained). Only size matters.
-2. **True, with a correction of emphasis.** ⊥-free ⇒ satisfiable (Theorem A). The
-   non-trivial requirement is exactly ⟦F⟧ = ⟦φ⟧ with |F| = poly(|φ|).
-3. **True, and strict.** DNNF ⊆ PC-NNF since disjoint children cannot conflict, so
-   DNNF, d-DNNF and OBDD sizes upper-bound m. Strictness: the monotone 2-CNF of a
-   bounded-degree expander graph is a linear-size PC-NNF (it is unate), but needs
-   DNNF size 2^Ω(n) (Bova, Capelli, Mengel, Slivovsky, "Expander CNFs have exponential
-   DNNF size", arXiv:1411.1995, 2014; and "Knowledge compilation meets communication
-   complexity", IJCAI 2016) **[cited]**. Hence no PC-NNF → DNNF translation with
-   polynomial blow-up exists.
-4. **True.** Vertex covers of G = models of the monotone 2-CNF of G; #monotone-2-SAT is
-   #P-complete (Valiant, SIAM J. Comput. 8, 1979) **[cited]**.
-5. **True, but the naive reading is not.** A poly-size PC-NNF for each φ is *not* a
-   certificate usable by a P/poly algorithm, because the compiled formula depends on φ
-   and cannot be verified equivalent (EQ is coNP-hard). The correct argument uses a
-   *universal* formula: let U_n(C, x) be the poly-size CNF saying "assignment x
-   satisfies the size-n CNF encoded by variables C". If m(U_n) = poly(n), the compiled
-   U_n is advice for length n: given ψ, condition on C := ψ and run CO. So the
-   hypothesis implies SAT ∈ P/poly. The conditional is moot: Corollary C' in 2.1 shows
-   m(U_n) is exponential unconditionally, so the hypothesis is simply false.
+### 3.1 Theorem A, Lemma W, conditioning, forgetting (Section 2) [checked]
 
-### 2.1 Q1a: unconditional lower bounds
+▸ These are the properties the per-instance use relies on: a compiled φ_{G,k} yields a
+clique in O(size), and sub-problems (G with some vertices forced in or out) come free from
+the same circuit by conditioning.
 
-The rectangle-cover technique does not transfer: an ∧-node's model set
-{σ : F(σ) = G(σ) = 1} with F, G co-unate on a shared set S is not a combinatorial
-rectangle, and the balanced-node argument that starts every DNNF lower bound has no
-counterpart when the shared set is large. The technique that does transfer is monotone
-circuit complexity, through the following collapse theorem.
+### 3.2 Theorem B (monotone collapse) [checked]
 
-**Theorem B (monotone collapse).** Let F be a valid PC-NNF computing a *monotone*
-function f. Let F↑ be F with every negative literal leaf replaced by ⊤. Then F↑ is a
-monotone {∧,∨}-circuit computing f, and its fan-in-2 size is at most |F|.
+**Theorem B.** Let F be a valid PC-NNF computing a *monotone* function f. Let F↑ be F with
+every negative literal leaf replaced by ⊤. Then F↑ is a monotone {∧,∨}-circuit computing f,
+and its fan-in-2 size is at most |F|.
 
 *Proof.* F↑ ≥ F pointwise. For the converse show by induction on nodes:
 N↑(σ) = 1 ⇒ ∃τ ≤ σ with N(τ) = 1 (pointwise order). Leaves: a `¬x` leaf gives
@@ -164,9 +256,16 @@ reference count. ∎ **[checked]**
 Since a monotone circuit is itself a valid PC-NNF, **for monotone f, m(f) equals the
 monotone circuit complexity of f up to a constant factor.**
 
-**Lower-bound tool.** Combining Theorem B with 1.3: for any f and any valid F ≡ f,
-|F| ≥ mono(g) for every monotone g obtainable from f by conditioning some variables,
-forgetting others, and renaming polarities. Call such g a *unate projection* of f.
+**Lower-bound tool (unate projections).** Combining Theorem B with 2.3: for any f and any
+valid F ≡ f, |F| ≥ mono(g) for every monotone g obtainable from f by conditioning some
+variables, forgetting others, and renaming polarities. Call such g a *unate projection* of f.
+
+▸ This is the only lower-bound technique available. It applies to φ_{G,k} only through
+unate projections of φ_{G,k}, and no hard one is known (Section 4.1). It also fixes the
+monotone part of φ_{G,k}: "at least k of s" has monotone circuits of size O(nk), so that
+part is never the obstacle.
+
+### 3.3 Theorem C and Corollary C′ (relational families) [cited]
 
 **Theorem C (explicit relational families).** Each family below is one satisfiable,
 poly-size CNF per n whose variables *include the edge indicators of the graph*, so
@@ -175,6 +274,10 @@ its model set is a relation (graph, witness), not the solution set of one graph.
 (b) The perfect-matching family has m(φ_n) ≥ n^{Ω(log n)} from Razborov 1985, and
 2^{n^{1/3−o(1)}} if the 2025 monotone matching bound (arXiv:2507.16105) holds up
 **[cited via search, verify before quoting]**.
+
+The CLIQUE encoding is needed later and is reproduced; the perfect-matching and Tseitin
+encodings and their citations (Razborov 1985, Tardos 1988, Andreev 1987, Harnik–Raz 2000,
+Cavalar–Kumar–Rossman 2020) are in archive 2.1 and are not repeated.
 
 - **CLIQUE encoding.** Variables: e_uv for u < v ∈ [n] (edge indicators), s_u
   (vertex selected), q_u (its complement), z_{i,u} (slot i ∈ [k] picks u). Clauses:
@@ -185,44 +288,33 @@ its model set is a relation (graph, witness), not the solution set of one graph.
   n^{Ω(√k)} for k ≤ (n/log n)^{2/3}, i.e. 2^{Ω((n/log n)^{1/3})} at the top of that
   range **[cited]**. Note the CNF has Θ(n²) variables, so the bound is exponential in a
   polynomial of the instance size, not in the number of variables.
-- **Perfect matching encoding.** Variables e_ij (edge of K_{n,n}) and m_ij (edge used);
-  clauses (¬m_ij ∨ e_ij), one-per-row and one-per-column exactly-one constraints on m.
-  ∃m φ = PM_n(e); Razborov ("logical permanent", Mat. Zametki 37, 1985) gives
-  n^{Ω(log n)} **[cited]**. Superpolynomial, and PM ∈ P.
-- **Tseitin encodings of monotone functions with an exponential monotone/non-monotone
-  gap.** Tardos (Combinatorica 8, 1988) gives a monotone function in P with monotone
-  complexity exp(c·n^{1/6−o(1)}) **[cited; exponent confirmed from the abstract]**.
-  For explicit functions not known to be in P, Andreev 1987 and Harnik–Raz (STOC
-  2000) give 2^{Ω(n^{1/3}/log n)} and Cavalar–Kumar–Rossman 2020 give
-  exp(n^{1/2−o(1)}) **[cited via search]**. Encoding a poly circuit for such an f by
-  Tseitin variables g gives ∃g φ_C(x, g) = f(x).
 
-**Corollary C' (the universal formula).** Let U_N(C, x) be the poly-size CNF of fact 5
-with auxiliary Tseitin variables a. Conditioning on C := code(φ_{n,k}) and forgetting
-a yields φ_{n,k} itself, so by 1.3, m(U_N) ≥ m(φ_{n,k}) = 2^{n^{Ω(1)}} for
-N = |φ_{n,k}|. This is one explicit satisfiable CNF family with exponential minimum
-size, with no assumption. It closes the P/poly route of fact 5 outright.
+**Corollary C′ (the universal formula).** Let U_N(C, x) be the poly-size CNF saying
+"assignment x satisfies the size-N CNF encoded by variables C", with auxiliary Tseitin
+variables a. Conditioning on C := code(φ_{n,k}) and forgetting a yields φ_{n,k} itself, so
+by 2.3, m(U_N) ≥ m(φ_{n,k}) = 2^{n^{Ω(1)}} for N = |φ_{n,k}|. This is one explicit
+satisfiable CNF family with exponential minimum size, with no assumption.
 
-*What this says about the P vs NP framing.* The CLIQUE *relation* φ_{n,k} has no
-polynomial PC-NNF, regardless of whether P = NP; neither do the relations of
-*polynomial-time* problems (perfect matching, Tardos's function). So relational
-PC-NNF size is decoupled from decision complexity in both directions, and this
-project cannot decide P vs NP with PC-NNF as the language. For a fixed graph G the
-question is open: φ_{n,k}|_{e:=G} is a conditioning of φ_{n,k}, so
-m(φ_G) ≤ m(φ_{n,k}) and Theorem C gives no lower bound on it. What the project can do
-is map where the language fails per instance and test candidate strengthenings (Q3)
-against Theorem B.
+▸ Theorem C bounds a maximum over all graphs on n vertices plus the cost of uniformity;
+φ_{G,k} = ∃(q,z) φ_{n,k}|_{e:=E(G)} gives only m(φ_{G,k}) ≤ m(φ_{n,k}). Corollary C′ closes
+the "one circuit as advice for all instances" route; the per-instance route is untouched.
 
-*Limits of the tool.* For functions with no hard unate projection nothing is known.
-Two named open cases: (1) the **fixed-graph clique formula** over vertex selectors
-s_u: "at least k of s" ∧ (¬s_u ∨ ¬s_v) for every non-edge uv. It is non-monotone; its
-unate projections are thresholds, independent-set 2-CNFs after renaming, or thresholds
-over a fixed clique, all with small monotone circuits; for fixed k it is a DNF of size
-O(n^k). This is the honest form of "does PC-NNF blow up per instance". (2) The family
-f = ∧_{uv ∈ E(G)} (H_u ∨ H_v) with impure blocks H_u = (x_u ∧ y_u) ∨ (¬x_u ∧ z_u) and
-G an expander, which matters for Q3. **[conjecture: m is exponential for both]**
+### 3.4 Theorem D (the retained-incomplete-answers space, relational case) [proof sketch]
 
-### 2.2 Q1b: families with polynomial m
+Definitions of M(φ) are in Section 4.2. The archive's result (archive 2.4), with its proof
+sketch kept there:
+
+**Theorem D.** For φ′ = ∧_C (C ∨ w_C) with fresh dummies w_C,
+m(M(φ′)) ≥ m(∃_{other y} M(φ′)|_{w=0}). Applied to φ = the CLIQUE encoding of Theorem C
+(with e_uv pure positive, so its clause needs no dummy), the projection onto the
+e-occurrence variables is CLIQUE_{n,k}, so m(M(φ′_{n,k})) ≥ mono(CLIQUE_{n,k}) = 2^{n^{Ω(1)}}.
+**[proof sketch in archive 2.4; Lean target L9]**
+
+▸ The maximal-choice space is not easier than the model space for the *relational* encoding.
+For the clique graph of a fixed CNF the bound does not apply; whether M(ψ) and ψ (or
+φ_{G_ψ,m}) have the same growth on a given instance is open (Section 4.2).
+
+### 3.5 Families with polynomial m (archive 2.2)
 
 Provable now:
 - **Unate and renamable-unate CNFs:** m ≤ |φ| (the CNF is its own PC-NNF). Renamable
@@ -236,28 +328,23 @@ Provable now:
   m(φ) ≤ 2^{|I|}·|φ|, since every cofactor is unate.
 - **Closure:** polynomial m is preserved by ∨ of polynomially many formulas, by
   conditioning, forgetting, renaming, and by ∧ of co-unate formulas.
-- **Clash-graph decomposition (Q1c):** if the clauses of φ|ρ split into components
-  of the clash graph (clauses adjacent iff they contain complementary literals), the
-  compiled block is an ∧ of independent compilations. A hierarchical version gives
-  **[conjecture]** m(φ) ≤ |φ|·2^{O(w)} where w is a width measure of the graph on
-  *impure* variables only; the experiments test this.
+- **Clash-graph decomposition:** if the clauses of φ|ρ split into components of the clash
+  graph (clauses adjacent iff they contain complementary literals), the compiled block is
+  an ∧ of independent compilations. A hierarchical version gives **[conjecture]**
+  m(φ) ≤ |φ|·2^{O(w)} where w is a width measure of the graph on *impure* variables only.
+- **Fixed-graph clique, fixed k (added 2026-11):** for every G and k,
+  φ_{G,k} = ∨_{K a k-clique of G} ( ∧_{u∈K} s_u ∧ Conflicts|_{s_K := 1} ), where
+  Conflicts = ∧_{uv ∉ E(G)} (¬s_u ∨ ¬s_v) and Conflicts|_{s_K:=1} is all-negative and
+  mentions no vertex of K. This is a valid PC-NNF of size O(n^{k+2}). **[checked]**
+  (`check_witness.py`, check K.) The archive called this "a DNF of size O(n^k)"; as a DNF
+  it is wrong (a DNF needs one term per maximal clique for k = 1 already), as a PC-NNF the
+  polynomial bound holds. Two further polynomial corners: k = 0 (the conflict CNF alone,
+  linear) and G complete (the threshold alone, O(nk) by the standard monotone counter).
 
-Random 3-SAT: no theorem either way. Bova et al. 2014 prove the DNNF bound for an
-explicit expander family only; random bounded-degree graphs are expanders w.h.p., so
-the extension to random CNFs is a routine consequence but is not stated in that
-paper **[verified against the abstract]**. Either way it says nothing about PC-NNF,
-because the expander 2-CNF itself is linear in PC-NNF. Almost every variable in a
-random 3-CNF is impure, so the 2^{|I|} bound is useless, and the clash graph is
-connected above a small clause/variable ratio. This is the central experimental
-unknown. Structured 3-SAT: graph-colouring CNFs have the "positive exactly-one +
-negative conflict graph" shape of Section 2.4. With edge indicators as variables the
-projection ∃c φ(e, c) = "G(e) is k-colourable" is *anti-monotone* in e; renaming
-e ↔ ¬e (free by 1.3) makes it monotone, equivalently monotone circuit complexity is
-invariant under duality, so any monotone lower bound for non-k-colourability
-transfers (I know of no classical one to cite). For a fixed graph the question is
-open.
+▸ Polynomial size is known for φ_{G,k} only at fixed k. The regime of interest, k growing
+with n (for a clique graph, k = number of clauses), is not covered by any item above.
 
-### 2.3 Q1c: the clash-graph compiler is sound
+### 3.6 The clash-graph compiler (archive 2.3) [checked on 3000 random CNFs]
 
 Compile a residual CNF R to a block B(R) with these rules and a cache keyed by R:
 1. R = ∅ → ⊤; empty clause ∈ R → ⊥.
@@ -282,248 +369,362 @@ special case of no shared variables at all) and reproduces the unate-CNF bound (
 empty clash graph splits into single clauses). Variable-selection heuristic: prefer
 variables whose removal disconnects or shrinks the clash graph (e.g. highest number
 of clash edges, or a static cut of the clash graph), with dtree-style caching as in
-c2d/D4. Design question for the harness: size-optimal choice is a search problem;
-start with greedy plus the D4 default heuristic for comparability.
+c2d/D4. Size-optimal choice is a search problem; start with greedy plus the D4 default
+heuristic for comparability.
 
-### 2.4 Q2: maximal cliques, M(φ)
+▸ This is the candidate answer to the construction question. It is correct by
+construction, so its output on φ_{G,k} needs no verification; its size on φ_{G,k} is an
+upper bound on m(φ_{G,k}) and the central experimental quantity (Section 6.3). Two
+caveats: it takes CNF input, so "at least k of s" must be encoded with auxiliaries, and the
+encoding choice affects the output size (not m); and its variable-selection heuristic is
+unspecified, so a blow-up may be heuristic rather than inherent.
 
-**Reformulation.** Let Ḡ_φ be the complement of the clique graph: vertices are literal
-occurrences, edges join occurrences in the same clause and occurrences of
+---
+
+## 4. Open questions, ranked by relevance to the goal
+
+### 4.1 The fixed-graph clique formula
+
+φ_{G,k}(s) = "at least k of s" ∧ ∧_{uv ∉ E(G)} (¬s_u ∨ ¬s_v), over s only (auxiliaries
+never help, 2.3). Non-monotone: s is positive in the threshold and negative in the
+conflicts, so the plain ∧ of the two parts is invalid.
+
+What is known:
+- Upper bounds: O(n^{k+2}) at fixed k (3.5); the Shannon bound 2^{|I|}·|φ| with I = all
+  of s, useless; whatever the compiler of 3.6 produces; DNNF/OBDD sizes.
+- Lower bounds: none. The unate projections found so far are thresholds, independent-set
+  2-CNFs after renaming, and thresholds over a fixed clique, all with small monotone
+  circuits. The archive stated that these are *all* the unate projections; that
+  classification is not proved and is recorded here as **[conjecture]**. If it holds, the
+  tool of 3.2 can never bound φ_{G,k}, and a new technique is required.
+- DNNF comparison: for k = 0 the formula is the (renamed) monotone 2-CNF of the complement
+  of G, so when the complement is a bounded-degree expander the DNNF size is 2^Ω(n)
+  (Bova et al. **[cited]**, Section 2.5; DNNF size is invariant under renaming) while m is
+  linear in the number of non-edges. A DNNF or OBDD blow-up on such
+  instances therefore says nothing about PC-NNF; the baselines in Section 6 are
+  interpreted with this in mind. For k ≥ 1 the same is expected but not proved.
+
+Open sub-questions, in order:
+(a) Is there a graph family with m(φ_{G,k}) super-polynomial? **[conjecture: yes]**, with no
+    candidate technique.
+(b) For which families is the compiler of 3.6 polynomial, under which heuristic and which
+    cardinality encoding? Experimental (Section 6.3).
+(c) On the instances the old constructor blew up on: does the compiler blow up too? Requires
+    those instances (Section 6.1).
+(d) Clique graphs of CNFs with k = number of clauses (Section 1.3): here the threshold
+    disappears into exactly-one constraints and the question is the "positive exactly-one
+    plus negative conflict graph" pattern of 4.2.
+
+### 4.2 The retained-incomplete-answers space M(φ)
+
+Carried over from the reconstructed Questions file (Q2), now deleted from the tree (it is
+in git history, last at commit fa9a3b7).
+
+**Definition (Q2, original wording).** Over vertex-indicator variables y_v, one per literal
+occurrence, define M(φ) = "the chosen vertices form a clique, i.e. at most one per triangle
+and no two with opposite signs of one variable, and the clique is inclusion-maximal, i.e.
+every triangle with no chosen vertex has all three of its literals negated by chosen
+vertices". At the variable level this is the family of consistent literal choices, one per
+used clause, that cannot be extended by choosing a literal from any unused clause without a
+contradiction. This is exactly the space the previous constructor enumerated. ("Triangle"
+= the three occurrences of a 3-clause, which form a triangle in the clique graph.)
+
+**Reformulation (archive 2.4).** Let Ḡ_φ be the complement of the clique graph: vertices
+are literal occurrences, edges join occurrences in the same clause and occurrences of
 complementary literals. M(φ) is exactly the set of *maximal independent sets* of Ḡ_φ,
-i.e. the CNF ∧_{uv∈E} (¬y_u ∨ ¬y_v) ∧ ∧_v (y_v ∨ ∨_{u∼v} y_u). At the variable level a
-model is a consistent literal set ρ (the chosen literals) such that every clause is
-either satisfied by ρ, with exactly one ρ-true occurrence chosen as witness, or
-falsified by ρ (all three literals complemented in ρ). So M(φ) ⊋ {models of φ with
-witnesses}; the extra models are partial assignments that *decide* every clause.
+i.e. the CNF ∧_{uv∈E} (¬y_u ∨ ¬y_v) ∧ ∧_v (y_v ∨ ∨_{u∼v} y_u). A model is a consistent
+literal set ρ such that every clause is either satisfied by ρ, with exactly one ρ-true
+occurrence chosen as witness, or falsified by ρ (all its literals complemented in ρ). So
+M(φ) ⊋ {models of φ with witnesses}; the extra models are partial assignments that
+*decide* every clause. The key observation behind Theorem D: a clause containing a literal
+whose complement has no occurrence cannot be falsified, so it must be witnessed; dummies
+w_C and conditioning y_{w_C} = 0 cut M down to the witnessed models.
 
-**Key observation.** A clause containing a literal whose complement has no occurrence
-in φ cannot be falsified, so it must be witnessed. Hence for φ' = ∧_C (C ∨ w_C) with
-fresh w_C, conditioning M(φ') on y_{w_C} = 0 for all C leaves exactly the
-(model, witness) pairs of φ. Conditioning and forgetting are free (1.3), so:
+The original sub-questions: must M(φ) grow exponentially for some families, and can that be
+proven? Treat the general pattern "positive at-least-one / exactly-one / at-most-c
+constraints mixed with a negative conflict graph" as its own sub-question, since it is the
+simplest place where the difficulty appears.
 
-**Theorem D.** m(M(φ')) ≥ m(∃_{other y} M(φ')|_{w=0}). Applied to φ = the CLIQUE
-encoding of Theorem C (with e_uv pure positive, so its clause needs no dummy), the
-projection onto the e-occurrence variables is CLIQUE_{n,k}: y_e = 1 makes e_uv the
-witness and imposes nothing; y_e = 0 forces the witness q_u or q_v, i.e. not both
-endpoints selected. So m(M(φ'_{n,k})) ≥ mono(CLIQUE_{n,k}) = 2^{n^{Ω(1)}}.
-**[proof sketch above; Lean target]**
+Status:
+- Relational case: answered by Theorem D (3.4): not easier in the worst case.
+- Per-instance case: open. Neither reduction between M(φ) and φ (or φ_{G_φ,m}) is a PC-NNF
+  operation: both need an ∧ with an impure operand. Whether they have the same growth on a
+  given instance is experiment E5 (Section 6).
+- The general pattern: the archive's observation stands. The pattern is hard *relationally*
+  as soon as it can encode a selector of k items whose pairwise compatibility is controlled
+  by pure variables (the CLIQUE encoding uses only at-least-one groups, exactly-one pairs and
+  negative 2-clauses). Per instance, if every unate projection is simple (for instance a
+  single at-most-c on a conflict-free set) the compiler of 3.6 gives polynomial size;
+  classifying the boundary is experiment E4.
+- By Section 1.3, φ_{G_ψ,m} *is* the exactly-one instance of the pattern, so 4.1(d) and
+  this item are one question.
 
-So the retained-incomplete-answers space is *not* easier in the worst case for the
-relational encoding. This does not explain the previous constructor's blow-up unless
-it was fed edge-variable encodings; for the clique graph of a fixed 3-CNF the bound
-does not apply (the fixed-graph formula is a conditioning of the relational one).
-Whether M(φ) and φ have the *same* growth on a given instance is open: neither
-reduction between them is a PC-NNF operation (both need an ∧ with an impure operand).
-This is experiment E6.
+### 4.3 The impure-block family
 
-**The general pattern** "positive at-least-one / exactly-one / at-most-c constraints
-plus a negative conflict graph" is answered by the same construction: the CLIQUE
-encoding uses only at-least-one groups, exactly-one pairs and negative 2-clauses, and
-it already has a hard unate projection. The pattern is hard as soon as it can encode
-a selector of k items whose pairwise compatibility is controlled by pure variables.
-By contrast, if the positive groups and the conflict graph are such that every unate
-projection is "simple" (for instance a single at-most-c on a conflict-free set), the
-compiler of 2.3 gives polynomial size; classifying the boundary is experiment E5.
+f_G = ∧_{uv ∈ E(G)} (H_u ∨ H_v) with H_u = (x_u ∧ y_u) ∨ (¬x_u ∧ z_u) and G a bounded-degree
+expander (archive 2.1, case 2). Every x_u is impure and shared across all edges at u, so the
+natural circuit is invalid at every ∧. Unate projections: conditioning all x gives the
+monotone 2-CNF of G (easy); forgetting all x gives ∧_{uv} ((y_u ∨ z_u) ∨ (y_v ∨ z_v)) (easy);
+so the tool of 3.2 gives nothing. **[conjecture: m(f_G) is exponential]**. This is the
+separating candidate for the shared-block exemption (Section 5.2) and is ranked here
+because a per-instance separation for an extension is only meaningful if the base language
+is shown, or at least observed, to blow up on something concrete.
 
-### 2.5 Q3: extensions
+### 4.4 Random 3-SAT
 
-**A general obstacle first.** Theorem B's proof only used that every gate is monotone
-in its inputs and that ∧-nodes admit the merge argument. Therefore any extension whose
-gates are monotone (∧, ∨, at-least-k, threshold, majority) and which keeps a merge
-lemma at conjunctive gates inherits the CLIQUE lower bound unchanged. Only
-non-monotone gates (XOR, exactly-k, at-most-k, negation) can escape it, and those are
-exactly the gates that break the one-pass sat computation unless their operands come
-from a sublanguage where *falsifiability* is also computable. This is the design
-tension for all of Q3.
+No theorem either way (archive 2.2). Almost every variable in a random 3-CNF is impure, so
+the 2^{|I|} bound is useless, and the clash graph is connected above a small
+clause/variable ratio. The expander DNNF bound of Bova et al. extends to random
+bounded-degree graphs as a routine consequence not stated in that paper **[verified against
+the abstract]**, and says nothing about PC-NNF because the expander 2-CNF itself is linear
+in PC-NNF. Graph-colouring CNFs are an instance of the 4.2 pattern (positive exactly-one plus
+a negative conflict graph); with edge indicators as variables the projection is
+anti-monotone in e and any monotone lower bound for non-k-colourability would transfer
+(none known to cite); for a fixed graph the question is open. Ranked last because it is
+not on the path to the goal; it stays in the plan as a control family.
 
-**Candidate 1: shared-block exemption.**
-Sound condition (dominator rule): at an ∧-node N, let X_bad be the variables that
-violate the base rule at N. N is accepted iff every x ∈ X_bad can be assigned a block
-H(x) ≠ N in the sub-DAG of N such that (i) every path from N to a leaf `x` or `¬x`
-passes through H(x), i.e. H(x) dominates all x-leaves from source N; and (ii) for
-x ≠ x' with H(x) ≠ H(x'), x ∉ vars(H(x')). Under this rule the bottom-up pass is
-unchanged and Theorem A still holds. *Proof sketch* **[sketch, gap noted, Lean target
-L8]**. First, every exempt block lies under at least two children: x ∈ X_bad is
-reachable from two different children and all its paths pass through H(x), so H(x) is
-reachable from both. Hence no variable of an exempt block is private to one child;
-every non-bad variable of H_j is shared and therefore single-polarity everywhere
-under N. Now take genuine models σ_i ⊨ C_i, replace every maximal H_j-instance under N
-by a positive atom h_j with value h_j := H_j(σ_i) in child i, and run the base merge on
-the resulting C_i' (they contain h_j positive-only and no X_bad variable). For the
-X_bad variables of H_j take the values from any σ_i with H_j(σ_i) = 1 (consistent
-across instances because H_j is one block, across blocks by (ii)); for the shared
-non-bad variables take the merge value, which keeps every C_i' and every H_j true by
-monotonicity. If no child has H_j(σ_i) = 1 the atom is 0 everywhere and H_j's bad
-variables are irrelevant. The gap the reviewer found in the earlier version (an
-independent model τ_j of H_j clashing with σ_i on variables of H_j) is closed by the
-"no private variables" observation, but the ordering above is the one to formalise.
-The counterexample H = A∧B, F = H, G = (H∧⊥) ∨ (¬A∧D) is rejected because the `¬A`
-leaf in G is not dominated by H. **[checked that base rule rejects it, that the naive
-pass would be wrong, and, by the reviewer's fuzzing of 9000 accepted exempt DAGs,
-that soundness, conditioning closure and the Theorem B collapse hold under the
-rule]** The rule is preserved by conditioning
-(conditioning removes leaves, so dominance and X_bad only shrink).
-Checkability: one dominator-tree computation (Lengauer–Tarjan, near-linear) per
-∧-node that has a non-empty X_bad, so O(|F|²) worst case and near-linear when few
-nodes need exemptions; a single near-linear check for all nodes at once is open.
-Succinctness: base PC-NNF simulates an exempted node by Shannon expansion on the
-virtual atoms, cost 2^{(number of exempt blocks at the node)}; a polynomial simulation
-would need a *monotone DNNF* over the virtual atoms, and monotone 2-CNFs of expanders
-have no small DNNF. So the family ∧_{uv∈E(G)} (H_u ∨ H_v) of 2.1 is the natural
-separating candidate. **[conjecture: exponential separation]** But by the obstacle
-above, the exemption does not touch the CLIQUE bound; the collapse proof extends to
-exempted nodes.
+---
+
+## 5. Extensions (Q3)
+
+### 5.1 Criteria and the role of Theorem B
+
+An extension is assessed on, in order:
+1. **One-pass satisfiability and witness extraction.** Block answers context-free (or
+   boundedly context-dependent), a Lemma-W-style witness still available.
+2. **Closure under conditioning.** Sub-problems must stay free.
+3. **Not polynomially simulable by base PC-NNF.** Otherwise the extension changes constants,
+   not the per-instance question.
+4. **Evidence it helps a per-instance family.** A concrete family (Section 4) on which the
+   base language blows up, provably or experimentally, and the extension does not.
+
+Theorem B is retained as a tool and a sanity check, not as a verdict. The archive's
+observation (archive 2.5, "general obstacle"): Theorem B's proof uses only that every gate
+is monotone in its inputs and that conjunctive gates admit the merge argument, so any
+extension with monotone gates and a merge lemma at conjunctive gates collapses to monotone
+circuits on monotone targets. This is a proof sketch, not checked, **[conjecture]** as a
+general statement. Its correct use here: (i) for an extension of that kind, any per-instance
+advantage must come from non-monotone targets, which φ_{G,k} is; (ii) if a prototype of such
+an extension produces a polynomial circuit for a relational family of Theorem C, the
+prototype has a bug. The archive's "net assessment" conjecture, that a language with a
+context-free one-pass test and conditioning closure is no stronger than monotone circuits
+on monotone targets, is kept as **[conjecture]** in archive 2.5 and is not a criterion here.
+
+### 5.2 Candidate list (carried over from Q3 and archive 2.5)
+
+**Candidate 1: shared-block exemption.** Motivation (Q3): F ∧ F is semantically safe even
+when F contains both x and ¬x, yet the base rule rejects it. Candidate condition: a
+conflicting pair of occurrences is exempt when both lie inside instances of one block
+referenced by both children. Warning (Q3): the shortcut of replacing each shared block by a
+fresh atom and then checking the ordinary rule is unsound. With H = A ∧ B, F = H,
+G = (H ∧ ⊥) ∨ (¬A ∧ D), the shortcut accepts F ∧ G and the bottom-up pass says satisfiable,
+but F ∧ G ≡ ⊥. **[checked that the base rule rejects it and that the naive pass would be
+wrong]** (`check_tiny.py`).
+
+Sound condition proposed in the archive (dominator rule): at an ∧-node N, let X_bad be the
+variables that violate the base rule at N. N is accepted iff every x ∈ X_bad can be assigned
+a block H(x) ≠ N in the sub-DAG of N such that (i) every path from N to a leaf `x` or `¬x`
+passes through H(x), and (ii) for x ≠ x′ with H(x) ≠ H(x′), x ∉ vars(H(x′)). Under this rule
+the bottom-up pass is unchanged and Theorem A is claimed to still hold; the proof sketch,
+with a noted gap and the reviewer's fuzzing, is archive 2.5 and Lean target L8. The
+archive's tag reads **[checked that base rule rejects it, that the naive pass would be
+wrong, and, by the reviewer's fuzzing of 9000 accepted exempt DAGs, that soundness,
+conditioning closure and the Theorem B collapse hold under the rule]**; only the first two
+parts are backed by `check_tiny.py`, the fuzzing script is not in this repository. The
+counterexample is rejected by the rule because the `¬A` leaf in G is not dominated by H.
+Conditioning closure: the rule is preserved (conditioning removes leaves, so dominance and
+X_bad only shrink). Checkability: one dominator-tree computation per ∧-node with non-empty
+X_bad, O(|F|²) worst case; a single near-linear check is open. Witness extraction under the
+rule: expected to follow Lemma W's argument with H(x)'s own pruned sub-DAG shared by all
+paths, not checked. Simulation: base PC-NNF simulates an exempted node by Shannon expansion
+on the virtual atoms, cost 2^{(number of exempt blocks at the node)}; a polynomial
+simulation would need a monotone DNNF over the virtual atoms, and monotone 2-CNFs of
+expanders have no small DNNF. Separating family: f_G of 4.3. **[conjecture: exponential
+separation]**
 
 **Candidate 2: XOR / exactly-k / cardinality blocks over variable-disjoint children.**
-sat(F ⊕ G) with disjoint variables = (sat F ∧ fals G) ∨ (fals F ∧ sat G), so the pass
-needs *falsifiability* of the children, which is coNP-hard for general PC-NNF (DNF ⊆
-PC-NNF). The block is sound only if its children come from a "two-sided" sublanguage
-with both bits computable and closed under conditioning, e.g. decision-DNNF/OBDD
-(fals(F∧G) = fals F ∨ fals G, fals(ite) = fals F ∨ fals G) or, recursively, other
-XOR/cardinality blocks over such children. In addition the XOR block's variables must
-be private with respect to every ancestor ∧ (an XOR is not unate in any variable, so
-the merge lemma fails: (x⊕y) ∧ x ∧ y is unsatisfiable though each conjunct is).
-With those restrictions the block is sound, one-pass, and conditioning-closed, but it
-is **polynomially simulable in base PC-NNF**: with two-sided children the negation
-¬F_i is available at the same size, and ⊕_{i≤k} F_i (or exactly-k, at-most-k) is the
-parity/counter OBDD over virtual atoms with each ite(h_i, A, B) expanded as
-(F_i ∧ A) ∨ (¬F_i ∧ B), size O(k·Σ|F_i|) (O(k²·Σ|F_i|) for counters). So it changes
-constants, not asymptotics. The user's remark that the pass only needs *one* valid
-answer is correct but does not help: the difficulty is falsifiability, not choice.
+From Q3, with the user's remark kept in full: "The language is to compute any valid answer,
+even if enumerating all potentials is exponential; that does not cause an issue if any of
+the exponential options can be chosen freely." The archive's reply: the remark is correct
+but does not help, because the difficulty is falsifiability, not choice.
+sat(F ⊕ G) with disjoint variables = (sat F ∧ fals G) ∨ (fals F ∧ sat G), so the pass needs
+*falsifiability* of the children, which is coNP-hard for general PC-NNF (DNF ⊆ PC-NNF). The
+block is sound only if its children come from a "two-sided" sublanguage with both bits
+computable and closed under conditioning, e.g. decision-DNNF/OBDD, or recursively other
+XOR/cardinality blocks over such children. In addition the block's variables must be private
+with respect to every ancestor ∧ (an XOR is not unate in any variable, so the merge lemma
+fails: (x⊕y) ∧ x ∧ y is unsatisfiable though each conjunct is). With those restrictions the
+block is sound, one-pass, and conditioning-closed, but **polynomially simulable in base
+PC-NNF**: with two-sided children the negation ¬F_i is available at the same size, and
+⊕_{i≤k} F_i (or exactly-k, at-most-k) is the parity/counter OBDD over virtual atoms with each
+ite(h_i, A, B) expanded as (F_i ∧ A) ∨ (¬F_i ∧ B), size O(k·Σ|F_i|) (O(k²·Σ|F_i|) for
+counters). It changes constants, not asymptotics.
 
-**Candidate 3 (own): bounded-context blocks.** **[conjecture, undefined]** The idea:
-each node N carries a context set K(N) of ≤ c variables, its answer is a table
-sat(N|κ) over the 2^c assignments κ to K(N), and the polarity rule at N is waived for
-variables in K(N). What is *not* yet defined is how a parent consumes a child's table
-when K(child) ⊄ K(parent). The strict rule K(child) ⊆ K(parent) is sound but makes
-the root's context contain every context variable, so c bounds the total and Shannon
-expansion on ≤ c variables simulates it in base PC-NNF at cost 2^c: no asymptotic
-gain. The permissive rule, dropping a child's context variable when it is private to
-that child within the parent, is where a separation might live, but its soundness
-(an OR over the dropped variable's values per child) and the size of its base
-simulation have not been worked out. Monotone gates only, so Theorem B would apply
-to any sound version. Not recommended for implementation until defined.
+**Candidate 3: bounded-context blocks.** **[conjecture, undefined]** Each node N carries a
+context set K(N) of ≤ c variables, its answer is a table sat(N|κ) over the 2^c assignments
+to K(N), and the polarity rule at N is waived for variables in K(N). Undefined: how a parent
+consumes a child's table when K(child) ⊄ K(parent). The strict rule K(child) ⊆ K(parent) is
+sound but makes the root's context contain every context variable, so Shannon expansion on
+≤ c variables simulates it in base PC-NNF at cost 2^c: no asymptotic gain. The permissive
+rule (drop a child's context variable when it is private to that child within the parent)
+is where a separation might live; its soundness and base simulation are not worked out.
+Not for implementation until defined.
 
-**Candidate 4 (own): decision nodes on impure shared variables** are already
-expressible as conditioning inside the ∨ of rule 4 in 2.3; no gain.
+**Candidate 4: decision nodes on impure shared variables.** Already expressible as
+conditioning inside the ∨ of rule 4 in 3.6; no gain.
 
-**Candidate 5 (own): negation of two-sided sub-blocks** (allow ¬H as a leaf when H is
-decision-DNNF/OBDD). Sound and one-pass, but ¬H has an explicit decision-DNNF of the
-same size, so no gain.
+**Candidate 5: negation of two-sided sub-blocks** (¬H as a leaf when H is
+decision-DNNF/OBDD). Sound and one-pass, but ¬H has an explicit decision-DNNF of the same
+size, so no gain.
 
-Net assessment: no proposed extension is known to escape Theorem B, and the only ones
-that could (non-monotone gates) are simulable whenever they are sound. The honest
-conclusion is that a language with (i) a context-free one-pass sat test and
-(ii) closure under conditioning is, for monotone targets, no stronger than monotone
-circuits **[conjecture, stated as a research direction]**; proving or refuting this
-is the theoretical question that decides whether the whole approach can progress.
+### 5.3 Ranking on the criteria of 5.1
 
----
+| Rank | Extension | 1. One-pass sat + witness | 2. Conditioning | 3. Not base-simulable | 4. Per-instance evidence | Theorem B collapse extends (sanity only) |
+|---|---|---|---|---|---|---|
+| 1 | Shared-block exemption (dominator rule) | sat: yes, unchanged pass [sketch, L8]; witness: expected, unchecked | yes | conjectured yes (needs monotone DNNF of virtual atoms to simulate) | f_G of 4.3, conjecture only; no experiment yet | claimed (archive 2.5) |
+| 2 | Bounded-context blocks, permissive rule | undefined | undefined | unknown (strict rule: no, 2^c) | none | would, if sound |
+| 3 | XOR / exactly-k / cardinality over disjoint two-sided children | yes, needs fals bits | yes | **no** (parity/counter OBDD over virtual atoms) | none possible | not applicable |
+| 4 | Negation of two-sided sub-blocks | yes | yes | **no** | none possible | not applicable |
+| 5 | Decision nodes on impure shared variables | yes | yes | **no** (already expressible) | none possible | yes |
+| — | XOR over general PC-NNF children | **no** (coNP-hard fals) | — | — | — | — |
+| — | Rule at both ∧ and ∨ ("two-sided PC-NNF") | yes, both bits | yes | expresses only unate functions | — | — |
 
-## 3. Experiment plan
-
-### 3.1 Hypotheses
-
-| # | Hypothesis | Status from theory |
-|---|---|---|
-| H1 | The previous blow-up came from the constructor, not the language. | Refuted for relational (edge-variable) encodings (Theorems C, D); open for every per-instance family, including the instances actually used. |
-| H2 | Random 3-SAT at fixed ratio α has exponential m(φ). | Open; no technique. |
-| H3 | Size is governed by the structure of *impure* variables: m(φ) ≤ ǀφǀ·2^{O(w)} for a width w of the clash structure. | Conjecture (2.2). |
-| H4 | The Q1c compiler never exceeds decision-DNNF (D4/c2d) size on the same instance and same variable order. | Hypothesis only: after a clash-graph split the residuals and cache behaviour differ from D4's. |
-| H5 | M(φ) and φ have the same size growth on the same instances. | Open (2.4). |
-| H6 | The shared-block exemption gives exponential savings on ∧_E (H_u ∨ H_v). | Conjecture (2.5). |
-| H7 | The projection bound is tight on tiny CLIQUE encodings: the exact minimum of φ_{n,k} equals the monotone circuit minimum of CLIQUE_{n,k}. (Theorem B itself is an equality only for monotone f.) | Open; testable at n ≤ 4. |
-
-### 3.2 Instance generators (C# library, DIMACS out)
-
-- Random 3-SAT: n ∈ {10,…,60}, α ∈ {1, 2, 3, 3.5, 4, 4.26, 5, 6}, 20 seeds each,
-  satisfiable instances only (filter with a SAT solver).
-- Parity/XOR chains: x₁⊕…⊕x_n = b with chain auxiliaries; also XOR of random
-  3-variable sums (Tseitin formulas on random 3-regular graphs, satisfiable charge).
-- Graph k-colouring: grids, random regular, random G(n,p); k = 3, 4; both fixed-graph
-  CNFs and the edge-indicator variant of 2.2.
-- Monotone 2-CNFs of expanders (random 3-regular and 5-regular graphs) and of
-  bounded-treewidth graphs (paths, cycles, grids), as controls where m is known.
-- CLIQUE and perfect-matching encodings of Theorem C, n ≤ 8 (sizes to compare with
-  the bounds), and their w-dummied versions for M.
-- Clique encodings of the above 3-CNFs: φ over x, and M(φ) over y (both the raw
-  maximal-independent-set CNF and the w-dummied, conditioned variant).
-- ∧_E (H_u ∨ H_v) with impure H_u, G expander or path (H6).
-
-### 3.3 Exact minimum size for tiny instances
-
-Only exact minima say anything about lower bounds, and only at n ≤ 6 or so. Method:
-SAT-based exact synthesis (Knuth TAOCP 7.1.2 style; Kojevnikov–Kulikov–Yaroslavtsev
-2009). Encode "there is a PC-NNF with s nodes computing truth table t": per node a
-type (∧/∨/literal/constant), child selectors, per-node vars⁺/vars⁻ bitsets as SAT
-variables propagated through children, the validity constraint at ∧-nodes, and the
-truth-table constraint over all 2^n assignments. Solve with CaDiCaL for s = 1, 2, …
-until satisfiable. Use fan-in 2 for the search and report both binary size and the
-n-ary size (n-ary ≤ binary ≤ 3× n-ary, so growth rates are unaffected). Expected
-reach: n ≤ 5, s ≤ ~25. Same encoding with the exemption rule of 2.5 (dominance is
-expressible with per-node reachability bits) gives exact minima for H6 at tiny size.
-For the monotone side of H7 compute exact monotone-circuit minima with the same tool
-restricted to positive leaves.
-
-### 3.4 Upper-bound compilers (C#)
-
-1. Plain Shannon expansion with caching by residual CNF (baseline).
-2. The Q1c clash-graph compiler (2.3), with variable heuristics: (a) most clash edges,
-   (b) minimum-cut of the clash graph, (c) D4-like dynamic decomposition on the
-   *clash* graph instead of the primal graph. Log the size after each rule application
-   to attribute savings to splitting vs. pure-decision vs. caching.
-3. The same compiler with the shared-block exemption enabled as an optional
-   post-pass (merge nodes that become identical up to exemption).
-Outputs: nodes, references, size, wall time, cache hit rate, and a validity re-check.
-
-### 3.5 Baselines
-
-- D4 (Lagniez–Marquis 2017; github.com/crillab/d4) and c2d (Darwiche) for
-  decision-DNNF/d-DNNF sizes; both upper-bound m.
-- CUDD OBDDs via the .NET `DecisionDiagrams` package or the Python `dd` package,
-  with sifting; OBDD size upper-bounds m.
-- Sizes are compared as PC-NNF sizes after parsing the compiler output into the
-  common DAG format, so all counts use the same size definition.
-
-### 3.6 Metrics, plots, decisions
-
-- Per family: median and max size vs n on a log axis; fitted exponent of log(size)
-  vs n and vs n·log n; ratio compiler/baseline; ratio to exact minimum where available.
-- Random 3-SAT: heat map of fitted growth exponent over α × heuristic.
-- Outcomes → hypotheses: H1 supported if the compiler is polynomial on the instances
-  the constructor blew up on; refuted for those instances if all compilers and exact
-  minima grow exponentially. H2: polynomial compiler sizes refute it; exponential
-  sizes are consistent with it but prove nothing. H3: compare growth against the
-  width measure; a family with bounded width and exponential size refutes it. H4:
-  any instance where the Q1c compiler exceeds D4 size is a bug or a heuristic issue.
-  H5: divergent exponents on the same instances refute it. H6: exact minima at tiny
-  size that coincide with and without exemption weaken it; compiler growth on the
-  expander family supports it. H7: exact minima below the monotone minimum would
-  contradict Theorem B and indicate a bug. In addition, compile the fixed-graph
-  clique formula of 2.1 (open case 1) for graph families of growing size; polynomial
-  growth there would settle the per-instance question in the language's favour.
+Recommendation (unchanged in substance from the archive, re-justified on criterion 4):
+candidate 1 is the only one worth building, and only after the base language has been
+measured on f_G and on φ_{G,k} (Section 6), so that a separation has something to separate
+from. Candidates 3 to 5 are closed by criterion 3. Candidate 2 (bounded-context) stays on
+paper until defined. No extension design starts before the user's review of this document.
 
 ---
 
-## 4. Ranked Q3 extensions
+## 6. Experiment plan, centred on the fixed-graph clique formula
 
-| Rank | Extension | One-pass sat | Conditioning | Base can simulate in poly? | Escapes Theorem B? |
-|---|---|---|---|---|---|
-| 1 | Shared-block exemption (dominator rule, 2.5) | yes, unchanged pass | yes | unknown; conjectured no | no |
-| 2 | XOR / exactly-k / cardinality over disjoint two-sided children | yes, needs fals bits | yes | yes (parity/counter OBDD over virtual atoms) | not applicable (simulable) |
-| 3 | Negation of two-sided sub-blocks | yes | yes | yes | not applicable |
-| — | Bounded-context blocks | undefined (2.5) | undefined | strict version: yes at 2^c | no |
-| — | XOR over general PC-NNF children | **no** (coNP-hard fals) | — | — | — |
-| — | Rule at both ∧ and ∨ ("two-sided PC-NNF") | yes, both bits | yes | expresses only unate functions | — |
+### 6.1 Required input from the user
 
-Recommendation: implement 1 (as a compiler post-pass and in the exact-synthesis
-encoding). Do not build 2 or 3 beyond a correctness note; they cannot change
-asymptotics. Bounded-context blocks stay on paper until the combination rule is
-defined and proved sound.
+The instances on which the old constructor blew up are not in this repository and are
+not substituted. Needed: the graphs G and targets k (or the CNFs ψ from which clique
+graphs were built), the constructor's output sizes per instance, and, if available, the
+constructor's circuits so that validity and equivalence at tiny n can be re-checked.
+Experiments E1 to E3 below run without them; E6 cannot.
+
+### 6.2 E1: exact minima at tiny n (SAT-based synthesis)
+
+Only exact minima say anything about lower bounds, and only at tiny size. Method: SAT-based
+exact synthesis (Knuth TAOCP 7.1.2 style; Kojevnikov–Kulikov–Yaroslavtsev 2009). Encode
+"there is a valid PC-NNF with s nodes computing truth table t" over the s-variables only
+(auxiliaries never help, 2.3): per node a type (∧/∨/literal/constant), child selectors,
+per-node vars⁺/vars⁻ bitsets propagated through children, the validity constraint at
+∧-nodes, and the truth-table constraint over all 2^n assignments. Solve with CaDiCaL for
+s = 1, 2, … until satisfiable. Use fan-in 2 for the search and report both binary size and
+the n-ary size (n-ary ≤ binary ≤ 3× n-ary, so growth rates are unaffected). Expected reach:
+n ≤ 5, s ≤ ~25.
+
+Targets, in order:
+- **All graphs on n ≤ 5 vertices, all k** (34 non-isomorphic graphs at n = 5), giving a
+  complete table m(φ_{G,k}). Compare against the O(n^{k+2}) construction of 3.5 and against
+  the compiler of 3.6 to measure the compiler's overhead at tiny size.
+- Clique graphs of the smallest CNFs: two clauses of width ≤ 2 give ≤ 4 occurrences, so
+  ≤ 4 vertices, with k = 2. These are the smallest instances of the exactly-one pattern
+  (4.1(d)); anything larger exceeds the n ≤ 5 reach.
+- Monotone-circuit minima (same tool, positive leaves only) for the relational CLIQUE_{n,k}
+  at n ≤ 4, to test tightness of the projection bound (old H7, kept as a sanity check).
+- Same encoding with the dominator rule of 5.2 (dominance is expressible with per-node
+  reachability bits), only for f_G at tiny G (paths, triangles), and only after E2.
+
+Exact minima at n ≤ 5 cannot distinguish polynomial from exponential growth. Their role is
+to calibrate E2 (how far above the minimum does the compiler land) and to catch bugs.
+
+### 6.3 E2: the compiler of 3.6 on growing graph families
+
+Compile φ_{G,k} as CNF (conflict clauses plus a cardinality encoding of "at least k": naive
+∨ over k-subsets for k ≤ 3, sequential counter, totalizer; report each) with the compiler of
+3.6 under heuristics (a) most clash edges, (b) minimum cut of the clash graph, (c) D4-like
+dynamic decomposition on the clash graph. Log the size after each rule application to
+attribute savings to splitting vs. pure decision vs. caching. Forget the cardinality
+auxiliaries from the output (free) before measuring, so all sizes are over s.
+
+Graph families, n up to the compiler's limit:
+- Complete graphs and complete multipartite (Turán) graphs: cliques easy to see; control.
+- Complements of perfect matchings (cocktail-party graphs): exponentially many maximal
+  cliques, DNF-hard at k = 1, but conflict clauses are disjoint; control for the "DNF vs.
+  PC-NNF" gap of 3.5.
+- Complements of random 3-regular and 5-regular graphs (expanders w.h.p.): DNNF-hard at k = 0
+  (4.1), PC-NNF linear at k = 0; the question is k growing.
+- Random G(n, p) for p ∈ {0.3, 0.5, 0.7, 0.9}, with k from 2 up to the clique number.
+- Clique graphs of random satisfiable 3-CNFs at clause/variable ratios {2, 3, 4, 4.26}, with
+  k = number of clauses (Section 1.3); this is the family the old constructor's instances
+  presumably belong to.
+- Clique graphs of structured CNFs: graph-colouring, pigeonhole (unsatisfiable: the
+  compiled circuit must have sat = 0, and its size measures how much search the compiler
+  does before collapsing).
+Per family: median and max size vs n on a log axis; fitted exponent of log(size) vs n and vs
+n log n; ratio to the exact minimum where E1 reaches.
+
+### 6.4 E3: DNNF and OBDD baselines
+
+D4 (Lagniez–Marquis 2017; github.com/crillab/d4) and c2d (Darwiche) on the same CNFs, with
+auxiliaries forgotten afterwards (free for DNNF); CUDD OBDDs built directly over s from
+"threshold ∧ conflicts" with sifting. All sizes converted to the common DAG format and the
+size definition of 2.1. Both upper-bound m(φ_{G,k}). Expectation from 4.1: DNNF/OBDD blow up
+on complements of expanders regardless of k; so the informative comparison is where the
+compiler of 3.6 tracks or beats them, and any instance where the compiler exceeds D4 is a
+bug or a heuristic issue (old H4).
+
+### 6.5 Validity and partial verification of untrusted circuits
+
+Every circuit from E2 and E3 is re-checked for validity (2.1). A circuit from an untrusted
+source (the old constructor, or E1's synthesizer) can be checked at tiny n by truth table.
+At larger n only one-sided checks are available: "every model of F is a clique" is the set of
+O(n²) clausal-entailment queries F ⊨ (¬s_u ∨ ¬s_v) over non-edges, each O(|F|) (2.4); the
+other direction (every k-clique is a model, and every model has ≥ k vertices) has no
+polynomial check in general. Hence the construction question is settled only by a
+correct-by-construction compiler.
+
+### 6.6 E4 and E5: the pattern boundary and M(ψ)
+
+E4: for the "positive at-least-one / exactly-one / at-most-c plus negative conflict graph"
+pattern (4.2), vary the group structure and the conflict graph (disjoint groups vs.
+overlapping, conflict graph a matching, a path, a grid, an expander) and compile; look for
+the boundary between polynomial and exponential compiler growth and relate it to the width
+of the impure-variable graph (old H3).
+
+E5: for the same CNFs ψ, compile φ_{G_ψ,m}(y), M(ψ) (the raw maximal-independent-set CNF),
+and the w-dummied, conditioned variant of Theorem D; compare growth exponents per instance.
+
+### 6.7 E6: the old constructor's instances
+
+Once the input of 6.1 is available: compile each instance with the compiler of 3.6 and with
+D4/c2d; report compiler size against the constructor's size; where n is tiny, exact minima.
+
+### 6.8 Controls (moved from the centre of the old plan)
+
+Random 3-SAT (n ∈ {10,…,60}, ratios {1, 2, 3, 3.5, 4, 4.26, 5, 6}, 20 seeds, satisfiable
+only), parity/XOR chains and Tseitin formulas on random 3-regular graphs, monotone 2-CNFs of
+expanders and of bounded-treewidth graphs, graph k-colouring for grids and random graphs,
+and the relational CLIQUE / perfect-matching encodings of Theorem C at n ≤ 8: generator
+specifications are archive 3.2. They are kept as controls where m is known or where DNNF
+behaviour is known, and for the heat map of growth exponent over ratio × heuristic (archive
+3.6), but they are not on the path to the goal.
+
+### 6.9 Hypotheses
+
+| # | Hypothesis | Bears on | Status from theory | How the experiments move it |
+|---|---|---|---|---|
+| H1 | m(φ_{G,k}) is polynomial in n on the graph families of 6.3 with k growing. | Existence (Q1 of 1.1) | Open; known polynomial only at fixed k (3.5). | Polynomial compiler growth (E2) supports; exponential compiler growth is consistent with it but proves nothing; exact minima (E1) too small to decide. |
+| H1′ | Some graph family has super-polynomial m(φ_{G,k}). | Existence | **[conjecture]**; no technique (4.1). | Not refutable experimentally except by a polynomial upper bound on every tested family; a proof needs a new lower-bound method. |
+| H2 | The compiler of 3.6, with some heuristic and encoding, is polynomial on the families of 6.3. | Construction (Q2 of 1.1) | Open. | E2 directly; heuristic and encoding dependence reported separately. |
+| H2′ | On the old constructor's instances the compiler is polynomial, so the old blow-up was the constructor's. | Construction | Open; the relational refutation (archive H1) does not apply to fixed instances. | E6; needs the input of 6.1. Refuted for those instances only if all compilers and exact minima grow exponentially. |
+| H3 | Compiler size tracks the exact minimum within a small factor at n ≤ 5. | Construction | Hypothesis. | E1 vs E2. |
+| H4 | The compiler never exceeds decision-DNNF (D4/c2d) size on the same instance and variable order. | Construction, sanity | Hypothesis: after a clash-graph split the residuals and cache behaviour differ from D4's. | E3; any violation is a bug or heuristic issue. |
+| H5 | Size is governed by the structure of impure variables: m(φ) ≤ ǀφǀ·2^{O(w)} for a width w of the clash structure. | Existence, pattern of 4.2 | **[conjecture]** (3.5). | E4; a family with bounded width and exponential size refutes it. |
+| H6 | M(ψ), φ_{G_ψ,m} and ψ have the same size growth on the same instances. | 4.2 | Open. | E5; divergent exponents refute. |
+| H7 | The shared-block exemption gives exponential savings on f_G of 4.3. | Extensions | **[conjecture]** (5.2). | Exact minima with and without the rule at tiny G (E1, last item) that coincide weaken it; compiler growth on expanders supports it. Deferred until E2 has shown a base blow-up. |
+| H8 | The projection bound is tight on tiny relational CLIQUE encodings: exact m(φ_{n,k}) equals the monotone-circuit minimum of CLIQUE_{n,k}. | Sanity check of Theorem B | Open; Theorem B is an equality only for monotone f. | E1 at n ≤ 4; an exact minimum below the monotone minimum would contradict Theorem B and indicate a bug. |
+| H9 | Random 3-SAT at fixed ratio has exponential m. | Control | Open; no technique (4.4). | Polynomial compiler sizes refute; exponential sizes prove nothing. |
 
 ---
 
-## 5. Lemmas to machine-check in Lean 4
+## 7. Lemmas to machine-check in Lean 4 (carried over, L11 added)
 
 Represent formulas as an inductive tree first (validity and semantics are properties
 of the unfolded tree, so DAG sharing is a representation detail proved separately as
@@ -538,21 +739,29 @@ of the unfolded tree, so DAG sharing is a representation detail proved separatel
 | L5 | Forgetting: `eval (F[x,¬x:=⊤]) σ = eval F σ[x:=0] ∨ eval F σ[x:=1]` for valid F; validity preserved. | L1 | medium |
 | L6 | Theorem B (monotone collapse) and the size bound after fan-in-2 conversion. | L1 | medium |
 | L7 | Q1c compiler: output valid and equivalent to the input CNF (invariant lits(B(R)) ⊆ lits(R)). | L4 | medium; write the compiler in Lean directly |
-| L8 | Shared-block exemption soundness (2.5) and, as a `decide`-checked example, that the naive atom shortcut accepts the A/¬A counterexample. | L2, L5 | large; the dominator formulation needs a DAG model |
-| L9 | Theorem C/D projection identities: `∃ s q z, φ_{n,k}(e,s,q,z) ↔ CLIQUE_{n,k} e`, and the w-dummy / pure-literal lemma of 2.4. | — | medium |
-| L10 | XOR-block soundness over two-sided children, and its polynomial simulation. | L3 | small; low priority (Section 4) |
+| L8 | Shared-block exemption soundness (5.2) and, as a `decide`-checked example, that the naive atom shortcut accepts the A/¬A counterexample. | L2, L5 | large; the dominator formulation needs a DAG model |
+| L9 | Theorem C/D projection identities: `∃ s q z, φ_{n,k}(e,s,q,z) ↔ CLIQUE_{n,k} e`, and the w-dummy / pure-literal lemma of 4.2. | — | medium |
+| L10 | XOR-block soundness over two-sided children, and its polynomial simulation. | L3 | small; low priority (Section 5) |
+| L11 | Lemma W: the pruned sub-DAG's literal set is consistent and every extension is a model; and the fixed-k construction of 3.5 is valid and equivalent to φ_{G,k}. | L3 | small |
 
 Not machine-checkable here and to be cited: Razborov, Alon–Boppana, Tardos,
 Harnik–Raz (monotone lower bounds), Bova–Capelli–Mengel–Slivovsky (DNNF lower bounds),
 Valiant (#P-completeness). Use core Lean 4 plus Batteries; add Mathlib only if the
-`Finset`/`Function.Monotone` API is needed (it likely is for L6).
+`Finset`/`Function.Monotone` API is needed (it likely is for L6). Priority order for the
+goal: L7 (the compiler is the deliverable that needs trust), L3/L11, L4, then the rest.
 
 ---
 
-## 6. Toolchain and dev-container changes
+## 8. Toolchain and dev-container changes
+
+**Current state (2026-11-07):** `.devcontainer/Dockerfile` installs Node, git, zsh, the
+Claude Code CLI and the firewall script only. None of .NET, Lean/elan, pip packages,
+CaDiCaL, D4 or CUDD is present. Everything below (archive Section 6, unchanged) has to be
+applied before any harness work; `scripts/check_tiny.py` and `scripts/check_witness.py` run
+on the system Python 3.11 without packages.
 
 Roles: C# (.NET 8) for generators, compilers, exact synthesis driver, and metrics;
-Lean 4 for Section 5; Python only for throwaway checks such as `scripts/check_tiny.py`.
+Lean 4 for Section 7; Python only for throwaway checks such as `scripts/check_tiny.py`.
 
 Add to `.devcontainer/Dockerfile` (build-time, so the runtime firewall does not
 apply):
@@ -583,3 +792,6 @@ Repository layout to create in the next step: `src/PcNnf.Core` (DAG, validity,
 queries), `src/PcNnf.Compile`, `src/PcNnf.Exact`, `src/PcNnf.Bench`, `lean/PcNnf`,
 `scripts/`, `data/` (git-ignored), `docs/`.
 
+Order of work after the user's review: (1) toolchain, (2) `PcNnf.Core` with validity, the
+pass, Lemma W, conditioning, forgetting, (3) the compiler of 3.6 with its validity re-check,
+(4) E2 on the families of 6.3 and E6 once the instances arrive, (5) E1, (6) E3, (7) Lean L7.
