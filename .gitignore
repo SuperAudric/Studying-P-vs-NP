@@ -1,2 +1,12 @@
 # cache and other artifacts produced by Lean's Lake build tool
 .lake/
+
+# .NET build output
+bin/
+obj/
+
+# generated tables (plan 8)
+data/
+
+# Python bytecode caches
+__pycache__/

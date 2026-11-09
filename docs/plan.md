@@ -262,6 +262,37 @@ m(f) ≥ mono(f↑), and by renaming, the same for the closure under any choice 
 Conversely F↑ is monotone and F↑ ≥ F pointwise, so F↑(σ) ≥ F↑(τ) ≥ F(τ) = f(τ) for every
 τ ≤ σ, i.e. F↑ ≥ f↑. ∎ **[checked]** (`check_witness.py`, check B′.)
 
+**Lemma E (per-variable closure).** Let F be a valid PC-NNF computing f and let f be
+non-decreasing in x. Then F[¬x := ⊤], obtained by replacing every ¬x leaf by ⊤, is valid, no
+larger, and computes f. Dually, if f is non-increasing in x then F[x := ⊤] computes f.
+
+*Proof.* Validity and size: a leaf is replaced by a leaf and vars± only shrink. Write F° for
+F[¬x := ⊤]. F° ≥ F pointwise, since NNF is monotone in its leaves. For the converse show by
+induction on the nodes of the DAG: N°(σ) = 1 ⇒ ∃ b ≤ σ(x) with N(σ[x := b]) = 1. Leaves: a
+¬x leaf gives b = 0; others are unchanged. ∨: take the child's b. Valid ∧-node with children
+C_i and values b_i: if x occurs in at most one child take its b_i (the others ignore x); if x
+occurs in two or more children then by validity it has one polarity in all of them. If
+positive, every C_i is non-decreasing in x and b = max b_i ≤ σ(x) satisfies all of them; if
+negative, every C_i is non-increasing in x and b = min b_i does. At the root, F°(σ) = 1 gives
+F(σ[x := b]) = 1 for some b ≤ σ(x), hence f(σ) = 1 because f is non-decreasing in x. So
+F° ≤ f ≤ F°. The dual statement is the same proof with the order reversed. ∎
+This is the argument of Theorem B′ run for one variable instead of all of them.
+**[checked]** (`scripts/check_essential.py`, check P1: random valid DAGs with shared nodes,
+n = 4, both directions.)
+
+**Corollary E1 (essential polarities).** Write P_ess(f) = {x : f is not non-increasing in x}
+and N_ess(f) = {x : f is not non-decreasing in x} (so x ∈ P_ess ∩ N_ess iff f is non-unate in
+x). By the unateness fact of 2.2, every NNF circuit F computing f has vars⁺(F) ⊇ P_ess(f) and
+vars⁻(F) ⊇ N_ess(f). Every size-minimal valid PC-NNF F for a non-constant f, in gate count or
+in the size of 2.1, tree or DAG, has vars⁺(F) = P_ess(f) and vars⁻(F) = N_ess(f).
+
+*Proof.* If x ∈ vars⁻(F) \ N_ess(f) then f is non-decreasing in x and Lemma E applies; the
+new ⊤ leaf sits under some gate (F is not a single leaf), and propagating it removes that
+gate (⊤ in ∧ is dropped, ⊤ in ∨ collapses the gate), so the result is a valid circuit for f
+with fewer gates and smaller 2.1 size, contradicting minimality. Dually for vars⁺. ∎
+**[checked]** (`scripts/check_essential.py`, check P2, on random DAGs;
+`scripts/spikes/enum_tree_minima.c`, exhaustively for minimal trees at n = 3, 4.)
+
 **Lower-bound tool (unate projections).** Combining Theorem B with 2.3: for any f and any
 valid F ≡ f, |F| ≥ mono(g) for every monotone g obtainable from f by conditioning some
 variables, forgetting others, and renaming polarities. Call such g a *unate projection* of f.
@@ -634,9 +665,17 @@ per-node vars⁺/vars⁻ bitsets propagated through children, the validity const
 ∧-nodes, and the truth-table constraint over all 2^n assignments. Solve with CaDiCaL for
 s = 1, 2, … until satisfiable. Use fan-in 2 for the search and report both binary size and
 the n-ary size (n-ary ≤ binary ≤ 3× n-ary, so growth rates are unaffected). Expected reach:
-n ≤ 5, s ≤ ~25.
+all 402 NP classes at n = 4 exactly; at n = 5 exact where the UNSAT step closes within the
+timeout (roughly 10 to 12 gates in the literature for general gates, more for PC-NNF by an
+unmeasured factor), otherwise a bracket [s + 1, m_tree]. m_tree is computed for all functions
+at n ≤ 4 by a size-stratified dictionary over (truth table, vars⁺, vars⁻); it upper-bounds m
+and seeds the SAT loop. Targets are Boolean functions given as truth tables; a CNF input,
+including a Tseitin encoding of a circuit, is projected onto its non-auxiliary variables by
+forgetting and then tabulated. The encoding is never the object measured.
 
 Targets, in order:
+- **All 402 NP classes of 4-variable functions:** C(f), m_tree(f), m(f); gap distribution;
+  maximum-gap classes listed. Every φ_{G,k} on 4 vertices is one of these.
 - **All graphs on n ≤ 5 vertices, all k** (34 non-isomorphic graphs at n = 5), giving a
   complete table m(φ_{G,k}). Compare against the O(n^{k+2}) construction of 3.5 and against
   the compiler of 3.6 to measure the compiler's overhead at tiny size.
@@ -742,6 +781,7 @@ but they are not on the path to the goal.
 | H7 | The shared-block exemption gives exponential savings on f_G of 4.3. | Extensions | **[conjecture]** (5.2). | Exact minima with and without the rule at tiny G (E1, last item) that coincide weaken it; compiler growth on expanders supports it. Deferred until E2 has shown a base blow-up. |
 | H8 | The projection bound is tight on tiny relational CLIQUE encodings: exact m(φ_{n,k}) equals the monotone-circuit minimum of CLIQUE_{n,k}. | Sanity check of Theorem B | Open; Theorem B is an equality only for monotone f. | E1 at n ≤ 4; an exact minimum below the monotone minimum would contradict Theorem B and indicate a bug. |
 | H9 | Random 3-SAT at fixed ratio has exponential m. | Control | Open; no technique (4.4). | Polynomial compiler sizes refute; exponential sizes prove nothing. |
+| H10 | No minimal PC-NNF DAG contains two gates with the same truth table. | Existence (1.1), E1 symmetry breaking | **[conjecture]**; cannot be settled by Corollary E1, which constrains the root only. | Refuted by any minimal circuit from E1's synthesizer with two equal-function gates. |
 
 ---
 
@@ -764,6 +804,7 @@ of the unfolded tree, so DAG sharing is a representation detail proved separatel
 | L9 | Theorem C/D projection identities: `∃ s q z, φ_{n,k}(e,s,q,z) ↔ CLIQUE_{n,k} e`, and the w-dummy / pure-literal lemma of 4.2. | — | medium |
 | L10 | XOR-block soundness over two-sided children, and its polynomial simulation. | L3 | small; low priority (Section 5) |
 | L11 | Lemma W: the pruned sub-DAG's literal set is consistent and every extension is a model; and the fixed-k construction of 3.5 is valid and equivalent to φ_{G,k}. | L3 | small |
+| L12 | Lemma E and Corollary E1 (3.2): per-variable closure; minimal circuits use exactly the essential polarities. | L1 | small; it is L6's induction for one variable |
 
 Not machine-checkable here and to be cited: Razborov, Alon–Boppana, Tardos,
 Harnik–Raz (monotone lower bounds), Bova–Capelli–Mengel–Slivovsky (DNNF lower bounds),
@@ -775,16 +816,17 @@ goal: L7 (the compiler is the deliverable that needs trust), L3/L11, L4, then th
 
 ## 8. Toolchain and dev-container changes
 
-**Current state (2026-11-07):** `.devcontainer/Dockerfile` installs Node, git, zsh, the
-Claude Code CLI, the firewall script, and, after the edit of 2026-11-07 (container rebuild
-pending), the items marked [installed] below: .NET 10 SDK, CaDiCaL, Kissat, drat-trim, and
-a Python venv with python-sat and networkx. This is exactly what E1 (6.2) needs. Items
-marked [deferred] are not installed: elan/Lean, D4, c2d, CUDD and the `DecisionDiagrams`
-package, matplotlib, pandas. `scripts/smoke.sh` checks the installed items after the
-rebuild; `scripts/check_tiny.py` and `scripts/check_witness.py` run on the venv's
-Python 3.11 (Debian bookworm) without packages.
+**Current state (2026-11-09):** `.devcontainer/Dockerfile` installs Node, git, zsh, the
+Claude Code CLI, the firewall script, and the items marked [installed] below: .NET 10 SDK,
+CaDiCaL, Kissat, drat-trim, and a Python venv with python-sat and networkx. The container
+was rebuilt and `scripts/smoke.sh` passed on 2026-11-09 (dotnet 10.0.403, CaDiCaL 3.0.1,
+Kissat 4.0.4, drat-trim verifying a proof, pysat and networkx importable, both check
+scripts passing). This is exactly what E1 (6.2) needs. Items marked [deferred] are not
+installed: elan/Lean, D4, c2d, CUDD and the `DecisionDiagrams` package, matplotlib, pandas.
+`scripts/smoke.sh` checks the installed items; `scripts/check_tiny.py` and
+`scripts/check_witness.py` run on the venv's Python 3.11 (Debian bookworm) without packages.
 
-Roles: C# (.NET 8) for generators, compilers, exact synthesis driver, and metrics;
+Roles: C# (.NET 10) for generators, compilers, exact synthesis driver, and metrics;
 Lean 4 for Section 7; Python only for throwaway checks such as `scripts/check_tiny.py`.
 
 Add to `.devcontainer/Dockerfile` (build-time, so the runtime firewall does not
@@ -823,9 +865,12 @@ restore), `pypi.org` and `files.pythonhosted.org` (pip), `release.lean-lang.org`
 adopted). GitHub is already allowed and covers elan, Batteries, D4, CaDiCaL, Kissat.
 
 Repository layout to create in the next step: `src/PcNnf.Core` (DAG, validity,
-queries), `src/PcNnf.Compile`, `src/PcNnf.Exact`, `src/PcNnf.Bench`, `lean/PcNnf`,
+queries), `src/PcNnf.Enum` (the size-stratified dictionary of 6.2: m_tree at n ≤ 4),
+`src/PcNnf.Compile`, `src/PcNnf.Exact`, `src/PcNnf.Bench`, `lean/PcNnf`,
 `scripts/`, `data/` (git-ignored), `docs/`.
 
 Order of work: (1) toolchain, (2) `PcNnf.Core` with validity, the
-pass, Lemma W, conditioning, forgetting, (3) the compiler of 3.6 with its validity re-check,
-(4) E2 on the families of 6.3 and E6 once the instances arrive, (5) E1, (6) E3, (7) Lean L7.
+pass, Lemma W, conditioning, forgetting, (3) `PcNnf.Enum` (one day; the fixture
+`scripts/spikes/enum_tree_minima.c` exists), (4) `PcNnf.Exact` (E1), (5) the compiler of 3.6
+with its validity re-check, (6) E2 on the families of 6.3 and E6 once the instances arrive,
+(7) E3, (8) Lean L7.

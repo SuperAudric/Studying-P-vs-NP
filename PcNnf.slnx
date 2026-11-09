@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PcNnf.Bench/PcNnf.Bench.csproj" />
+    <Project Path="src/PcNnf.Core/PcNnf.Core.csproj" />
+    <Project Path="src/PcNnf.Enum/PcNnf.Enum.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PcNnf.Tests/PcNnf.Tests.csproj" />
+  </Folder>
+</Solution>
