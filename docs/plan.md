@@ -776,30 +776,43 @@ goal: L7 (the compiler is the deliverable that needs trust), L3/L11, L4, then th
 ## 8. Toolchain and dev-container changes
 
 **Current state (2026-11-07):** `.devcontainer/Dockerfile` installs Node, git, zsh, the
-Claude Code CLI and the firewall script only. None of .NET, Lean/elan, pip packages,
-CaDiCaL, D4 or CUDD is present. Everything below has to be applied before any harness
-work; `scripts/check_tiny.py` and `scripts/check_witness.py` run
-on the system Python 3.11 without packages.
+Claude Code CLI, the firewall script, and, after the edit of 2026-11-07 (container rebuild
+pending), the items marked [installed] below: .NET 10 SDK, CaDiCaL, Kissat, drat-trim, and
+a Python venv with python-sat and networkx. This is exactly what E1 (6.2) needs. Items
+marked [deferred] are not installed: elan/Lean, D4, c2d, CUDD and the `DecisionDiagrams`
+package, matplotlib, pandas. `scripts/smoke.sh` checks the installed items after the
+rebuild; `scripts/check_tiny.py` and `scripts/check_witness.py` run on the venv's
+Python 3.11 (Debian bookworm) without packages.
 
 Roles: C# (.NET 8) for generators, compilers, exact synthesis driver, and metrics;
 Lean 4 for Section 7; Python only for throwaway checks such as `scripts/check_tiny.py`.
 
 Add to `.devcontainer/Dockerfile` (build-time, so the runtime firewall does not
 apply):
-- .NET 8 SDK via `dotnet-install.sh --channel 8.0` into `/usr/share/dotnet`, with
-  `DOTNET_CLI_TELEMETRY_OPTOUT=1`.
-- `elan` via `elan-init.sh -y` for user `node`, pinned to the toolchain named in the
-  future `lean-toolchain` file; run `lake build` once at image build if the Lean
-  project exists.
-- `python3-pip python3-venv`, then `pip install python-sat networkx matplotlib pandas`
-  in a venv (throwaway scripts only).
-- Build tools for external compilers and solvers: `build-essential cmake ninja-build
-  libgmp-dev zlib1g-dev libboost-all-dev` (D4's dependencies to be confirmed against
-  its README at build time). Build CaDiCaL and Kissat from GitHub; build D4 from
-  github.com/crillab/d4; c2d is a binary download from Darwiche's site with its own
-  licence, so keep it out of the image and mount it from the host.
-- CUDD: prefer the NuGet package `DecisionDiagrams` for the C# harness; the Python
-  `dd` package with its CUDD build as a cross-check.
+- [installed] .NET 10 SDK **10.0.403** (LTS, supported until 2028-11-14) via
+  `dotnet-install.sh --channel 10.0 --version 10.0.403 --install-dir /usr/share/dotnet`,
+  with `DOTNET_CLI_TELEMETRY_OPTOUT=1`, `DOTNET_NOLOGO=1` and
+  `DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE=1`; `dotnet` on PATH for user `node`.
+  Replaces the .NET 8 originally listed here: .NET 8 reaches end of support on
+  2026-11-10 (dotnet/core release notes, `release-notes/8.0/releases.json`).
+- [installed] SAT solvers and proof checker, built at image build from pinned GitHub
+  release tags into `/usr/local/bin`: CaDiCaL **rel-3.0.1**, Kissat **rel-4.0.4**
+  (github.com/arminbiere), drat-trim **v05.22.2023** (github.com/marijnheule/drat-trim,
+  for checking the UNSAT proofs that close each "no PC-NNF with s nodes" step of E1).
+  Only `build-essential` is needed for these three.
+- [installed] `python3-pip python3-venv`; venv at `/opt/venv` (first on PATH for user
+  `node`) with **python-sat==1.9.dev21** and **networkx==3.6.1** (networkx 3.7 requires
+  Python ≥ 3.12; the image has Debian bookworm's 3.11). Throwaway scripts only.
+- [deferred] matplotlib, pandas: add to the venv when E2 plots are needed.
+- [deferred] `elan` via `elan-init.sh -y` for user `node`, pinned to the toolchain named
+  in the future `lean-toolchain` file; run `lake build` once at image build if the Lean
+  project exists. Needed for Section 7, not for E1.
+- [deferred] D4 build dependencies `cmake ninja-build libgmp-dev zlib1g-dev
+  libboost-all-dev` (to be confirmed against D4's README at build time) and D4 itself
+  from github.com/crillab/d4; c2d is a binary download from Darwiche's site with its
+  own licence, so keep it out of the image and mount it from the host. Needed for E3.
+- [deferred] CUDD: prefer the NuGet package `DecisionDiagrams` for the C# harness; the
+  Python `dd` package with its CUDD build as a cross-check. Needed for E3.
 
 `.devcontainer/devcontainer.json`: add extensions `ms-dotnettools.csdevkit`,
 `leanprover.lean4`, `ms-python.python`; keep prettier off for `.cs`/`.lean` files.
